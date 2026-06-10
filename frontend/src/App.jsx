@@ -17,6 +17,7 @@ import {
 function App() {
   const [telaAtual, setTelaAtual] = useState('dashboard')
   const [listaQpus, setListaQpus] = useState([])
+  // Estado para filtrar a QPU visualizada no Relatório 1
 
   // Estados para armazenar os dados dos relatórios
   const [dadosT1, setDadosT1] = useState([])
@@ -32,6 +33,9 @@ function App() {
   const [statusQpu, setStatusQpu] = useState('Ativo')
   const [idCriostato, setIdCriostato] = useState('')
   const [idEditando, setIdEditando] = useState(null)
+
+  // Estado para filtrar a QPU visualizada no Relatório 1
+  const [qpuFiltrada, setQpuFiltrada] = useState('todas');
 
   const limparFormulario = () => {
     setNomeQpu(''); setFabricanteQpu(''); setModeloQpu('');
@@ -205,43 +209,106 @@ function App() {
               <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Resultados estruturados e representações gráficas das consultas do Item 6.</p>
             </div>
 
-            {/* CONSULTA 1 */}
+            {/* CONSULTA 1 AVANÇADA */}
             <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <h2>Consulta 1: Evolução Diária do Tempo de Coerência (T1)</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                <strong>Objetivo:</strong> Obter a média diária do tempo de coerência (T1) dos qubits para identificar degradações físicas no processador quântico. Envolve as tabelas <em>MedeQubit</em>, <em>Qubit</em> e <em>TipoMetrica</em>.
-              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h2>Consulta 1: Evolução Diária do Tempo de Coerência (T1)</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
+                    <strong>Objetivo:</strong> Monitorar a degradação física do hardware comparando o $T_1$ médio por processador e mapeando o qubit mais instável do dia. Envolve as tabelas <em>MedeQubit</em>, <em>Qubit</em> e <em>QPU</em>.
+                  </p>
+                </div>
+                
+                {/* Filtro Interativo */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Filtrar Hardware:</span>
+                  <select 
+                    value={qpuFiltrada} 
+                    onChange={(e) => setQpuFiltrada(e.target.value)}
+                    style={{ padding: '6px 12px', background: 'var(--bg-main)', color: 'white', border: '1px solid var(--border-color)', borderRadius: '6px' }}
+                  >
+                    <option value="todas">Visualizar Todas (Comparativo)</option>
+                    {[...new Set(dadosT1.map(d => d.qpu_nome))].map(nome => (
+                      <option key={nome} value={nome}>{nome}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
-                <div style={{ flex: '1 1 40%', overflowX: 'auto' }}>
+                
+                {/* TABELA DINÂMICA COM DIAGNÓSTICO CRÍTICO */}
+                <div style={{ flex: '1 1 45%', height: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-panel)', zIndex: 1 }}>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                         <th style={{ padding: '10px' }}>Data</th>
-                        <th style={{ padding: '10px' }}>Média T1 (μs)</th>
+                        <th style={{ padding: '10px' }}>QPU</th>
+                        <th style={{ padding: '10px' }}>Média T1</th>
+                        <th style={{ padding: '10px', color: '#f87171' }}>Qubit Crítico (Pior T1)</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {dadosT1.map((row, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '10px' }}>{new Date(row.data).toLocaleDateString('pt-BR')}</td>
-                          <td style={{ padding: '10px' }}>{Number(row.media_t1).toFixed(2)} μs</td>
-                        </tr>
-                      ))}
+                    <tbody style={{ fontSize: '0.9rem' }}>
+                      {dadosT1
+                        .filter(row => qpuFiltrada === 'todas' || row.qpu_nome === qpuFiltrada)
+                        .map((row, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '10px' }}>{new Date(row.data).toLocaleDateString('pt-BR')}</td>
+                            <td style={{ padding: '10px', fontWeight: 'bold' }}>{row.qpu_nome}</td>
+                            <td style={{ padding: '10px' }}>{Number(row.media_t1).toFixed(1)} μs</td>
+                            <td style={{ padding: '10px', color: '#f87171' }}>
+                              ID #{row.pior_qubit_id} ({Number(row.pior_valor_t1).toFixed(1)} μs)
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
-                <div style={{ flex: '1 1 50%', height: '250px', background: 'var(--bg-main)', padding: '10px', borderRadius: '8px' }}>
+
+                {/* GRÁFICO MULTILINHAS INTELIGENTE */}
+                <div style={{ flex: '1 1 50%', height: '280px', background: 'var(--bg-main)', padding: '15px 10px 5px 10px', borderRadius: '8px' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dadosT1}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                      <XAxis dataKey="data" stroke="var(--text-muted)" tickFormatter={(tick) => new Date(tick).toLocaleDateString('pt-BR')} />
-                      <YAxis stroke="var(--text-muted)" />
-                      <Tooltip />
+                    <LineChart 
+                      data={
+                        qpuFiltrada !== 'todas' 
+                          ? dadosT1.filter(d => d.qpu_nome === qpuFiltrada)
+                          : Object.values(dadosT1.reduce((acc, item) => {
+                              const dataStr = item.data;
+                              if (!acc[dataStr]) acc[dataStr] = { data: dataStr };
+                              acc[dataStr][item.qpu_nome] = Number(item.media_t1).toFixed(2);
+                              return acc;
+                            }, {}))
+                      }
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.2} />
+                      <XAxis 
+                        dataKey="data" 
+                        stroke="var(--text-muted)" 
+                        minTickGap={60}
+                        tickFormatter={(tick) => new Date(tick).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} 
+                      />
+                      <YAxis stroke="var(--text-muted)" domain={['dataMin - 5', 'dataMax + 5']} />
+                      <Tooltip labelFormatter={(label) => new Date(label).toLocaleDateString('pt-BR')} />
                       <Legend />
-                      <Line type="monotone" dataKey="media_t1" name="Média T1" stroke="var(--accent-purple)" strokeWidth={2} />
+                      
+                      {qpuFiltrada === 'todas' ? (
+                        [...new Set(dadosT1.map(d => d.qpu_nome))].map((nome, idx) => (
+                          <Line 
+                            key={nome} type="monotone" dataKey={nome} name={nome} 
+                            stroke={idx % 2 === 0 ? "var(--accent-purple)" : "#38bdf8"} 
+                            strokeWidth={2} dot={false} 
+                          />
+                        ))
+                      ) : (
+                        <Line 
+                          type="monotone" dataKey="media_t1" name={`Média T1 (${qpuFiltrada})`} 
+                          stroke="var(--accent-purple)" strokeWidth={2} dot={false} 
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+
               </div>
             </div>
 
@@ -249,7 +316,7 @@ function App() {
             <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <h2>Consulta 2: Fidelidade Média por Categoria de Porta Quântica</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                <strong>Objetivo:</strong> Calcular a média geral de fidelidade agrupada pelo número de qubits alvo da porta (1 Qubit vs. 2 Qubits) para avaliar o impacto do acoplamento técnico. Envolve as tabelas <em>MedePorta</em>, <em>PortaQuantica</em> e <em>TipoMetrica</em>.
+                <strong>Objetivo:</strong> Calcular a média geral de fidelidade agrupada pelo número de qubits alvo da porta (1 Qubit vs. 2 Qubits) para avaliar o impacto do acoplamento técnico. Envolve as tabelas <em>MedePorta</em>, <em>PortaQuantica</em> e <em>Experimento</em>.
               </p>
               <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
                 <div style={{ flex: '1 1 40%', overflowX: 'auto' }}>

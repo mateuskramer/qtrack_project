@@ -71,15 +71,32 @@ app.put('/api/qpus/:id', async (req, res) => {
 
 // ================= RELATÓRIOS (ITEM 6) =================
 
-// Relatório 1: Evolução Diária do T1
+// Relatório 1 Avançado: Evolução Diária do T1 com Pior Qubit do Dia
 app.get('/api/relatorios/t1', async (req, res) => {
   try {
     const query = `
-      SELECT DATE(data_hora_medicao) as data, AVG(valor) as media_t1
-      FROM MedeQubit
-      WHERE nome_metrica IN ('T1', 'Tempo de Coerência', 'Coherence Time')
-      GROUP BY DATE(data_hora_medicao)
-      ORDER BY data;
+      WITH diario_qpu AS (
+        SELECT 
+          p.id_qpu, p.nome as qpu_nome, DATE(mq.data_hora_medicao) as data, AVG(mq.valor) as media_t1
+        FROM MedeQubit mq
+        JOIN Qubit q ON mq.id_qubit = q.id_qubit
+        JOIN QPU p ON q.id_qpu = p.id_qpu
+        WHERE mq.nome_metrica IN ('T1', 'Tempo de Coerência', 'Coherence Time')
+        GROUP BY p.id_qpu, p.nome, DATE(mq.data_hora_medicao)
+      ),
+      ranqueamento_piores AS (
+        SELECT 
+          q.id_qpu, DATE(mq.data_hora_medicao) as data, mq.id_qubit as pior_qubit_id, mq.valor as pior_valor_t1,
+          ROW_NUMBER() OVER(PARTITION BY q.id_qpu, DATE(mq.data_hora_medicao) ORDER BY mq.valor ASC) as rn
+        FROM MedeQubit mq
+        JOIN Qubit q ON mq.id_qubit = q.id_qubit
+        WHERE mq.nome_metrica IN ('T1', 'Tempo de Coerência', 'Coherence Time')
+      )
+      SELECT 
+        d.qpu_nome, d.data, d.media_t1, r.pior_qubit_id, r.pior_valor_t1
+      FROM diario_qpu d
+      LEFT JOIN ranqueamento_piores r ON d.id_qpu = r.id_qpu AND d.data = r.data AND r.rn = 1
+      ORDER BY d.data ASC, d.qpu_nome ASC;
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -88,13 +105,14 @@ app.get('/api/relatorios/t1', async (req, res) => {
   }
 });
 
-// Relatório 2: Fidelidade por Categoria de Porta
+// Relatório 2: Fidelidade por Categoria de Porta (MedePorta, PortaQuantica, Experimento)
 app.get('/api/relatorios/fidelidade', async (req, res) => {
   try {
     const query = `
       SELECT pq.numero_qubits_alvo || ' Qubit(s)' as categoria, AVG(mp.valor) as fidelidade_media
       FROM MedePorta mp
       JOIN PortaQuantica pq ON mp.id_porta = pq.id_porta
+      JOIN Experimento e ON mp.id_experimento = e.id_experimento
       WHERE mp.nome_metrica IN ('Fidelidade', 'Fidelity', 'Gate Fidelity')
       GROUP BY pq.numero_qubits_alvo;
     `;
@@ -105,7 +123,7 @@ app.get('/api/relatorios/fidelidade', async (req, res) => {
   }
 });
 
-// Relatório 3: Impacto da Temperatura no Erro
+// Relatório 3: Impacto da Temperatura no Erro (RegistroAmbiente, Experimento, MedeQubit)
 app.get('/api/relatorios/temperatura', async (req, res) => {
   try {
     const query = `
