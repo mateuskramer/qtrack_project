@@ -1,3 +1,36 @@
 node_modules/
 dist/
 .env
+
+# Dependências do Node (Front e Back)
+node_modules/
+/frontend/node_modules/
+/backend/node_modules/
+
+# Pastas de build geradas pelo Vite/React
+dist/
+dist-ssr/
+build/
+
+# Arquivos de log de erros
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Arquivos de variáveis de ambiente (senhas, etc)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Arquivos do sistema operacional e de editores de código (VS Code, Mac, etc)
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

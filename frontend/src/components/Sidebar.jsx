@@ -1,4 +1,7 @@
-export default function Sidebar() {
+export default function Sidebar({ telaAtual, setTelaAtual }) {
+  // Função auxiliar para aplicar a classe 'active' no item selecionado
+  const isActive = (tela) => telaAtual === tela ? "active" : "";
+
   return (
     <aside className="sidebar">
       <div style={{ marginBottom: '30px' }}>
@@ -10,30 +13,40 @@ export default function Sidebar() {
         </p>
       </div>
 
-      <ul style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-        <li className="active">🏠 Dashboard</li>
-
-        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginTop: '20px', marginBottom: '10px', letterSpacing: '1px' }}>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: 0, listStyle: 'none' }}>
+        
+        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginTop: '10px', marginBottom: '10px', letterSpacing: '1px' }}>
           MONITORAMENTO
         </div>
-        <li>⚛ Qubits</li>
-        <li>📊 Métricas</li>
-        <li>🧾 Leituras</li>
-        <li>🔔 Alertas</li>
+        <li className={isActive('dashboard')} onClick={() => setTelaAtual('dashboard')} style={{ cursor: 'pointer' }}>
+  🏠 Dashboard
+        </li>
 
         <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginTop: '20px', marginBottom: '10px', letterSpacing: '1px' }}>
-          EXPERIMENTOS
+          GERENCIAMENTO (CRUD)
         </div>
-        <li>🧪 Experimentos</li>
-        <li>📈 Sequências de Pulso</li>
-        <li>🎛️ Portas Quânticas</li>
+        <li className={isActive('qpus')} onClick={() => setTelaAtual('qpus')} style={{ cursor: 'pointer' }}>💻 QPUs</li>
+        <li className={isActive('qubits')} onClick={() => setTelaAtual('qubits')} style={{ cursor: 'pointer' }}>⚛ Qubits</li>
+        <li className={isActive('criostatos')} onClick={() => setTelaAtual('criostatos')} style={{ cursor: 'pointer' }}>❄️ Criostatos</li>
+        <li className={isActive('pesquisadores')} onClick={() => setTelaAtual('pesquisadores')} style={{ cursor: 'pointer' }}>👩‍🔬 Pesquisadores</li>
+        <li className={isActive('experimentos')} onClick={() => setTelaAtual('experimentos')} style={{ cursor: 'pointer' }}>🧪 Experimentos</li>
+        <li className={isActive('calibracoes')} onClick={() => setTelaAtual('calibracoes')} style={{ cursor: 'pointer' }}>🔧 Calibrações</li>
 
         <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginTop: '20px', marginBottom: '10px', letterSpacing: '1px' }}>
-          INFRAESTRUTURA
+          CONSULTAS ACADÊMICAS
         </div>
-        <li>💻 QPUs</li>
-        <li>❄️ Criostatos</li>
-        <li>🌡️ Ambiente</li>
+        <li className={isActive('relatorios')} onClick={() => setTelaAtual('relatorios')} style={{ cursor: 'pointer' }}>📊 Relatórios</li>
+
+        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginTop: '20px', marginBottom: '10px', letterSpacing: '1px' }}>
+          MANUTENÇÃO DO BANCO
+        </div>
+        <li className={isActive('configuracoes')} onClick={() => setTelaAtual('configuracoes')} style={{ cursor: 'pointer' }}>⚙️ Configurações</li>
+
+        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginTop: '20px', marginBottom: '10px', letterSpacing: '1px' }}>
+          ASSISTENTE DE IA
+        </div>
+        <li className={isActive('copilot')} onClick={() => setTelaAtual('copilot')} style={{ cursor: 'pointer' }}>🤖 Copilot QTrack</li>
+
       </ul>
     </aside>
   )
