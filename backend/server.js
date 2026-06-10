@@ -77,7 +77,7 @@ app.get('/api/relatorios/t1', async (req, res) => {
     const query = `
       SELECT DATE(data_hora_medicao) as data, AVG(valor) as media_t1
       FROM MedeQubit
-      WHERE nome = 'T1'
+      WHERE nome_metrica IN ('T1', 'Tempo de Coerência', 'Coherence Time')
       GROUP BY DATE(data_hora_medicao)
       ORDER BY data;
     `;
@@ -95,7 +95,7 @@ app.get('/api/relatorios/fidelidade', async (req, res) => {
       SELECT pq.numero_qubits_alvo || ' Qubit(s)' as categoria, AVG(mp.valor) as fidelidade_media
       FROM MedePorta mp
       JOIN PortaQuantica pq ON mp.id_porta = pq.id_porta
-      WHERE mp.nome = 'Fidelidade'
+      WHERE mp.nome_metrica IN ('Fidelidade', 'Fidelity', 'Gate Fidelity')
       GROUP BY pq.numero_qubits_alvo;
     `;
     const result = await pool.query(query);
@@ -113,7 +113,7 @@ app.get('/api/relatorios/temperatura', async (req, res) => {
       FROM RegistroAmbiente ra
       JOIN Experimento e ON ra.id_registro_ambiente = e.id_registro_ambiente
       JOIN MedeQubit mq ON e.id_experimento = mq.id_experimento
-      WHERE mq.nome = 'Erro de Leitura'
+      WHERE mq.nome_metrica IN ('Erro de Leitura', 'Readout Error', 'Measurement Error')
       GROUP BY ra.temperatura
       ORDER BY ra.temperatura;
     `;

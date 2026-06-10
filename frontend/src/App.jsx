@@ -8,11 +8,22 @@ import ExperimentTable from './components/ExperimentTable'
 import FidelityChart from './components/FidelityChart'
 import ReadoutChart from './components/ReadoutChart'
 
+// Importações do Recharts para os gráficos dos relatórios
+import { 
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
+
 function App() {
   const [telaAtual, setTelaAtual] = useState('dashboard')
   const [listaQpus, setListaQpus] = useState([])
 
-  // Estados do formulário
+  // Estados para armazenar os dados dos relatórios
+  const [dadosT1, setDadosT1] = useState([])
+  const [dadosFidelidade, setDadosFidelidade] = useState([])
+  const [dadosTemperatura, setDadosTemperatura] = useState([])
+
+  // Estados do formulário de QPU
   const [nomeQpu, setNomeQpu] = useState('')
   const [fabricanteQpu, setFabricanteQpu] = useState('')
   const [modeloQpu, setModeloQpu] = useState('')
@@ -20,7 +31,6 @@ function App() {
   const [dataInstalacaoQpu, setDataInstalacaoQpu] = useState('')
   const [statusQpu, setStatusQpu] = useState('Ativo')
   const [idCriostato, setIdCriostato] = useState('')
-  
   const [idEditando, setIdEditando] = useState(null)
 
   const limparFormulario = () => {
@@ -62,7 +72,6 @@ function App() {
       if (resposta.ok) {
         alert(idEditando ? "QPU atualizada com sucesso!" : "QPU salva com sucesso!");
         limparFormulario();
-        
         const dadosAtualizados = await fetch('http://localhost:8000/api/qpus').then(res => res.json());
         setListaQpus(dadosAtualizados);
       } else {
@@ -88,12 +97,33 @@ function App() {
     }
   }
 
+  // Monitora a troca de abas para buscar os dados corretos
   useEffect(() => {
     if (telaAtual === 'qpus') {
       fetch('http://localhost:8000/api/qpus')
-        .then(resposta => resposta.json())
+        .then(res => res.json())
         .then(dados => setListaQpus(dados))
-        .catch(erro => console.error("Erro ao buscar dados:", erro))
+        .catch(err => console.error(err))
+    }
+
+    if (telaAtual === 'relatorios') {
+      // Busca Consulta 1
+      fetch('http://localhost:8000/api/relatorios/t1')
+        .then(res => res.json())
+        .then(dados => setDadosT1(dados))
+        .catch(err => console.error(err))
+
+      // Busca Consulta 2
+      fetch('http://localhost:8000/api/relatorios/fidelidade')
+        .then(res => res.json())
+        .then(dados => setDadosFidelidade(dados))
+        .catch(err => console.error(err))
+
+      // Busca Consulta 3
+      fetch('http://localhost:8000/api/relatorios/temperatura')
+        .then(res => res.json())
+        .then(dados => setDadosTemperatura(dados))
+        .catch(err => console.error(err))
     }
   }, [telaAtual])
 
@@ -102,6 +132,7 @@ function App() {
       <Sidebar telaAtual={telaAtual} setTelaAtual={setTelaAtual} />
 
       <main className="main">
+        {/* ================= TELA: DASHBOARD ================= */}
         {telaAtual === 'dashboard' && (
           <>
             <div className="topbar">
@@ -109,22 +140,12 @@ function App() {
                 <h1>Dashboard</h1>
                 <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Visão geral do estado da QPU e dos qubits</p>
               </div>
-
               <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                 <select style={{ padding: '8px 12px', background: 'var(--bg-panel)', color: 'white', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <select style={{ padding: '8px 12px', background: 'var(--bg-panel)', color: 'white', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   <option>QPU: QPU-01 (SuperCond-X)</option>
                 </select>
                 <div style={{ padding: '8px 12px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)' }}>
                   01/05/2026 - 08/05/2026
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '10px' }}>
-                   <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: 'var(--accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                     MV
-                   </div>
-                   <div>
-                     <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)' }}>Administrador</div>
-                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pesquisadora</div>
-                   </div>
                 </div>
               </div>
             </div>
@@ -142,22 +163,171 @@ function App() {
               <div className="panel"><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Fidelidade de Portas</h3><div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px' }}><FidelityChart /></div></div>
               <div className="panel"><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Erro de Leitura</h3><div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px' }}><ReadoutChart /></div></div>
             </div>
-
+          
             <div className="bottom">
-              <div className="panel" style={{ overflowX: 'auto' }}><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Experimentos Recentes</h3><ExperimentTable /></div>
-              <div className="panel"><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Alertas Ativos</h3></div>
-              <div className="panel"><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Condições do Ambiente</h3></div>
+              <div className="panel" style={{ overflowX: 'auto' }}>
+                <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Experimentos Recentes</h3>
+                <ExperimentTable />
+              </div>
+
+              <div className="panel">
+                 <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Alertas Ativos</h3>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ padding: '12px', borderLeft: '3px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '0 8px 8px 0' }}>
+                       <strong style={{ color: '#ef4444' }}>Qubit 13</strong>
+                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Taxa de erro de leitura acima do limite</p>
+                    </div>
+                    <div style={{ padding: '12px', borderLeft: '3px solid #eab308', background: 'rgba(234, 179, 8, 0.05)', borderRadius: '0 8px 8px 0' }}>
+                       <strong style={{ color: '#eab308' }}>Qubit 17</strong>
+                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Fidelidade de porta 2Q abaixo do esperado</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="panel">
+                <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Condições do Ambiente</h3>
+                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '15px', color: 'var(--text-muted)' }}>
+                   <li style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}><span>Temperatura (mK)</span> <strong style={{ color: 'var(--text-main)' }}>11.2 mK</strong></li>
+                   <li style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}><span>Pressão (mTorr)</span> <strong style={{ color: 'var(--text-main)' }}>2.1 mTorr</strong></li>
+                   <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Vibração (RMS)</span> <strong style={{ color: 'var(--text-main)' }}>1.3 μm/s</strong></li>
+                </ul>
+              </div>
             </div>
           </>
+          
         )}
 
+        {/* ================= TELA: RELATÓRIOS ACADÊMICOS (ITEM 6) ================= */}
         {telaAtual === 'relatorios' && (
-          <div style={{ padding: '20px', color: 'white' }}>
-            <h1>Consultas Acadêmicas</h1>
-            <p style={{ color: 'var(--text-muted)' }}>Execute as queries exigidas no item 6 do projeto.</p>
+          <div style={{ padding: '20px', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            <div>
+              <h1>Consultas Acadêmicas</h1>
+              <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Resultados estruturados e representações gráficas das consultas do Item 6.</p>
+            </div>
+
+            {/* CONSULTA 1 */}
+            <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h2>Consulta 1: Evolução Diária do Tempo de Coerência (T1)</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                <strong>Objetivo:</strong> Obter a média diária do tempo de coerência (T1) dos qubits para identificar degradações físicas no processador quântico. Envolve as tabelas <em>MedeQubit</em>, <em>Qubit</em> e <em>TipoMetrica</em>.
+              </p>
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
+                <div style={{ flex: '1 1 40%', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px' }}>Data</th>
+                        <th style={{ padding: '10px' }}>Média T1 (μs)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dadosT1.map((row, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '10px' }}>{new Date(row.data).toLocaleDateString('pt-BR')}</td>
+                          <td style={{ padding: '10px' }}>{Number(row.media_t1).toFixed(2)} μs</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ flex: '1 1 50%', height: '250px', background: 'var(--bg-main)', padding: '10px', borderRadius: '8px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dadosT1}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis dataKey="data" stroke="var(--text-muted)" tickFormatter={(tick) => new Date(tick).toLocaleDateString('pt-BR')} />
+                      <YAxis stroke="var(--text-muted)" />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="media_t1" name="Média T1" stroke="var(--accent-purple)" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* CONSULTA 2 */}
+            <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h2>Consulta 2: Fidelidade Média por Categoria de Porta Quântica</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                <strong>Objetivo:</strong> Calcular a média geral de fidelidade agrupada pelo número de qubits alvo da porta (1 Qubit vs. 2 Qubits) para avaliar o impacto do acoplamento técnico. Envolve as tabelas <em>MedePorta</em>, <em>PortaQuantica</em> e <em>TipoMetrica</em>.
+              </p>
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
+                <div style={{ flex: '1 1 40%', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px' }}>Categoria</th>
+                        <th style={{ padding: '10px' }}>Fidelidade Média</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dadosFidelidade.map((row, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '10px' }}>{row.categoria}</td>
+                          <td style={{ padding: '10px' }}>{(Number(row.fidelidade_media) * 100).toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ flex: '1 1 50%', height: '250px', background: 'var(--bg-main)', padding: '10px', borderRadius: '8px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dadosFidelidade}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis dataKey="categoria" stroke="var(--text-muted)" />
+                      <YAxis stroke="var(--text-muted)" domain={[0, 1]} />
+                      <Tooltip formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`} />
+                      <Legend />
+                      <Bar dataKey="fidelidade_media" name="Fidelidade" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* CONSULTA 3 */}
+            <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h2>Consulta 3: Impacto da Temperatura do Criostato na Taxa de Erro</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                <strong>Objetivo:</strong> Avaliar se flutuações na temperatura do ambiente criogênico estão correlacionadas com o aumento da taxa média de erro de leitura dos qubits. Envolve as tabelas <em>RegistroAmbiente</em>, <em>Experimento</em> e <em>MedeQubit</em>.
+              </p>
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
+                <div style={{ flex: '1 1 40%', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px' }}>Temperatura</th>
+                        <th style={{ padding: '10px' }}>Taxa de Erro Média</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dadosTemperatura.map((row, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '10px' }}>{row.temperatura} K</td>
+                          <td style={{ padding: '10px' }}>{(Number(row.taxa_erro_media) * 100).toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ flex: '1 1 50%', height: '250px', background: 'var(--bg-main)', padding: '10px', borderRadius: '8px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dadosTemperatura}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis dataKey="temperatura" stroke="var(--text-muted)" unit="K" />
+                      <YAxis stroke="var(--text-muted)" />
+                      <Tooltip formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`} />
+                      <Legend />
+                      <Bar dataKey="taxa_erro_media" name="Taxa de Erro Leitura" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
+        {/* ================= TELA: CRUD DE QPUs ================= */}
         {telaAtual === 'qpus' && (
           <div style={{ padding: '20px', color: 'var(--text-main)' }}>
             <h2 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
@@ -226,7 +396,6 @@ function App() {
             </div>
           </div>
         )}
-
       </main>
     </div>
   )
