@@ -17,13 +17,16 @@ import {
 function App() {
   const [telaAtual, setTelaAtual] = useState('dashboard')
   const [listaQpus, setListaQpus] = useState([])
+  const [listaAmbientes, setListaAmbientes] = useState([])
 
   // Estados para armazenar os dados dos relatórios (Abas acadêmicas)
   const [dadosT1, setDadosT1] = useState([])
   const [dadosFidelidade, setDadosFidelidade] = useState([])
   const [dadosTemperatura, setDadosTemperatura] = useState([])
 
-  // Estados do formulário de QPU (CRUD)
+  // ================= ESTADOS DOS FORMULÁRIOS (CRUD) =================
+  
+  // 1. QPUs
   const [nomeQpu, setNomeQpu] = useState('')
   const [fabricanteQpu, setFabricanteQpu] = useState('')
   const [modeloQpu, setModeloQpu] = useState('')
@@ -33,117 +36,278 @@ function App() {
   const [idCriostato, setIdCriostato] = useState('')
   const [idEditando, setIdEditando] = useState(null)
 
+  // 2. Qubits
+  const [listaQubits, setListaQubits] = useState([])
+  const [indiceQubit, setIndiceQubit] = useState('')
+  const [tipoQubit, setTipoQubit] = useState('')
+  const [frequenciaRessonancia, setFrequenciaRessonancia] = useState('')
+  const [statusQubit, setStatusQubit] = useState('Saudável')
+  const [observacoesQubit, setObservacoesQubit] = useState('')
+  const [idQpuQubit, setIdQpuQubit] = useState('')
+  const [idQubitEditando, setIdQubitEditando] = useState(null)
+
+  // 3. Criostatos
+  const [listaCriostatos, setListaCriostatos] = useState([])
+  const [nomeCrio, setNomeCrio] = useState('')
+  const [fabricanteCrio, setFabricanteCrio] = useState('')
+  const [modeloCrio, setModeloCrio] = useState('')
+  const [tempCrio, setTempCrio] = useState('')
+  const [statusCrio, setStatusCrio] = useState('Ativo')
+  const [idCrioEditando, setIdCrioEditando] = useState(null)
+
+  // 4. Pesquisadores
+  const [listaPesquisadores, setListaPesquisadores] = useState([])
+  const [nomePesq, setNomePesq] = useState('')
+  const [emailPesq, setEmailPesq] = useState('')
+  const [instituicaoPesq, setInstituicaoPesq] = useState('')
+  const [areaPesq, setAreaPesq] = useState('')
+  const [idPesqEditando, setIdPesqEditando] = useState(null)
+
+  // 5. Experimentos
+  const [listaExperimentos, setListaExperimentos] = useState([])
+  const [nomeExp, setNomeExp] = useState('')
+  const [objetivoExp, setObjetivoExp] = useState('')
+  const [inicioExp, setInicioExp] = useState('')
+  const [fimExp, setFimExp] = useState('')
+  const [statusExp, setStatusExp] = useState('Planejado')
+  const [obsExp, setObsExp] = useState('')
+  const [idPesqExp, setIdPesqExp] = useState('')
+  const [idQpuExp, setIdQpuExp] = useState('')
+  const [idAmbExp, setIdAmbExp] = useState('')
+  const [idExpEditando, setIdExpEditando] = useState(null)
+
+  // 6. Calibrações
+  const [listaCalibracoes, setListaCalibracoes] = useState([])
+  const [inicioCal, setInicioCal] = useState('')
+  const [fimCal, setFimCal] = useState('')
+  const [tipoCal, setTipoCal] = useState('')
+  const [versaoCal, setVersaoCal] = useState('')
+  const [resultadoCal, setResultadoCal] = useState('Sucesso')
+  const [obsCal, setObsCal] = useState('')
+  const [idPesqCal, setIdPesqCal] = useState('')
+  const [idQpuCal, setIdQpuCal] = useState('')
+  const [idAmbCal, setIdAmbCal] = useState('')
+  const [idCalEditando, setIdCalEditando] = useState(null)
+
   // Estado para filtrar a QPU visualizada no Relatório 1
   const [qpuFiltrada, setQpuFiltrada] = useState('todas');
 
-  // ============== NOVOS ESTADOS DO DASHBOARD DINÂMICO ==============
+  // ============== ESTADOS DO DASHBOARD DINÂMICO ==============
   const [qpuSelecionada, setQpuSelecionada] = useState('')
   const [dadosDashQubits, setDadosDashQubits] = useState({ mapa: [], metricas: [], fidelidades: [] })
   const [dadosDashAmbiente, setDadosDashAmbiente] = useState({ temperatura: 0, pressao: 0, vibracao: 0 })
 
+  // ================= LIMPEZA DE FORMULÁRIOS =================
   const limparFormulario = () => {
     setNomeQpu(''); setFabricanteQpu(''); setModeloQpu('');
     setTecnologiaQpu(''); setDataInstalacaoQpu(''); setStatusQpu('Ativo'); 
     setIdCriostato(''); setIdEditando(null);
   }
-
-  const preencherFormulario = (qpu) => {
-    setIdEditando(qpu.id_qpu);
-    setNomeQpu(qpu.nome);
-    setFabricanteQpu(qpu.fabricante);
-    setModeloQpu(qpu.modelo);
-    setTecnologiaQpu(qpu.tecnologia || '');
-    setDataInstalacaoQpu(qpu.data_instalacao ? qpu.data_instalacao.split('T')[0] : '');
-    setStatusQpu(qpu.status_operacional);
-    setIdCriostato(qpu.id_criostato || '');
+  const limparFormQubit = () => {
+    setIndiceQubit(''); setTipoQubit(''); setFrequenciaRessonancia('');
+    setStatusQubit('Saudável'); setObservacoesQubit(''); setIdQpuQubit(''); setIdQubitEditando(null);
+  }
+  const limparFormCriostato = () => {
+    setNomeCrio(''); setFabricanteCrio(''); setModeloCrio(''); setTempCrio(''); setStatusCrio('Ativo'); setIdCrioEditando(null);
+  }
+  const limparFormPesquisador = () => {
+    setNomePesq(''); setEmailPesq(''); setInstituicaoPesq(''); setAreaPesq(''); setIdPesqEditando(null);
+  }
+  const limparFormExperimento = () => {
+    setNomeExp(''); setObjetivoExp(''); setInicioExp(''); setFimExp(''); setStatusExp('Planejado'); setObsExp(''); setIdPesqExp(''); setIdQpuExp(''); setIdAmbExp(''); setIdExpEditando(null);
+  }
+  const limparFormCalibracao = () => {
+    setInicioCal(''); setFimCal(''); setTipoCal(''); setVersaoCal(''); setResultadoCal('Sucesso'); setObsCal(''); setIdPesqCal(''); setIdQpuCal(''); setIdAmbCal(''); setIdCalEditando(null);
   }
 
-  const handleSalvarQpu = async () => {
-    if (!nomeQpu || !fabricanteQpu || !modeloQpu || !tecnologiaQpu || !dataInstalacaoQpu || !idCriostato) {
-      return alert("Preencha todos os campos!");
-    }
+  // ================= PREENCHIMENTO PARA EDIÇÃO =================
+  const preencherFormulario = (qpu) => {
+    setIdEditando(qpu.id_qpu); setNomeQpu(qpu.nome); setFabricanteQpu(qpu.fabricante);
+    setModeloQpu(qpu.modelo); setTecnologiaQpu(qpu.tecnologia || '');
+    setDataInstalacaoQpu(qpu.data_instalacao ? qpu.data_instalacao.split('T')[0] : '');
+    setStatusQpu(qpu.status_operacional); setIdCriostato(qpu.id_criostato || '');
+  }
 
+  // ================= HANDLERS DE SALVAMENTO E EXCLUSÃO =================
+
+  // 1. QPUs
+  const handleSalvarQpu = async () => {
+    if (!nomeQpu || !fabricanteQpu || !modeloQpu || !tecnologiaQpu || !dataInstalacaoQpu || !idCriostato) return alert("Preencha todos os campos!");
     const url = idEditando ? `http://localhost:8000/api/qpus/${idEditando}` : 'http://localhost:8000/api/qpus';
     const metodo = idEditando ? 'PUT' : 'POST';
-
     try {
       const resposta = await fetch(url, {
-        method: metodo,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome: nomeQpu, fabricante: fabricanteQpu, modelo: modeloQpu,
-          tecnologia: tecnologiaQpu, data_instalacao: dataInstalacaoQpu,
-          status_operacional: statusQpu, id_criostato: idCriostato
-        })
+        method: metodo, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomeQpu, fabricante: fabricanteQpu, modelo: modeloQpu, tecnologia: tecnologiaQpu, data_instalacao: dataInstalacaoQpu, status_operacional: statusQpu, id_criostato: idCriostato })
       });
-
       if (resposta.ok) {
-        alert(idEditando ? "QPU updated!" : "QPU saved!");
-        limparFormulario();
-        const dadosAtualizados = await fetch('http://localhost:8000/api/qpus').then(res => res.json());
-        setListaQpus(dadosAtualizados);
-      } else {
-        alert("Erro ao salvar no banco.");
+        alert(idEditando ? "QPU atualizada com sucesso!" : "QPU salva com sucesso!"); limparFormulario();
+        const dadosAtualizados = await fetch('http://localhost:8000/api/qpus').then(res => res.json()); setListaQpus(dadosAtualizados);
       }
-    } catch (erro) {
-      console.error("Erro ao salvar:", erro);
-    }
+    } catch (erro) { console.error(erro); }
   }
-
   const handleExcluirQpu = async (id) => {
     if (!window.confirm("Tem certeza que deseja excluir esta QPU?")) return;
-
     try {
       const resposta = await fetch(`http://localhost:8000/api/qpus/${id}`, { method: 'DELETE' });
+      if (resposta.ok) setListaQpus(listaQpus.filter(qpu => qpu.id_qpu !== id));
+    } catch (erro) { console.error(erro); }
+  }
+
+  // 2. Qubits
+  const handleSalvarQubit = async () => {
+    if (!indiceQubit || !tipoQubit || !frequenciaRessonancia || !idQpuQubit) return alert("Preencha os campos obrigatórios!");
+    const url = idQubitEditando ? `http://localhost:8000/api/qubits/${idQubitEditando}` : 'http://localhost:8000/api/qubits';
+    const metodo = idQubitEditando ? 'PUT' : 'POST';
+    try {
+      const resposta = await fetch(url, {
+        method: metodo, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ indice_qubit: Number(indiceQubit), tipo_qubit: tipoQubit, frequencia_ressonancia: Number(frequenciaRessonancia), status_qubit: statusQubit, observacoes: observacoesQubit, id_qpu: Number(idQpuQubit) })
+      });
       if (resposta.ok) {
-        setListaQpus(listaQpus.filter(qpu => qpu.id_qpu !== id));
-      } else {
-        alert("Erro ao excluir.");
+        alert(idQubitEditando ? "Qubit atualizado!" : "Qubit salvo!"); limparFormQubit();
+        const dados = await fetch('http://localhost:8000/api/qubits').then(res => res.json()); setListaQubits(dados);
       }
-    } catch (erro) {
-      console.error("Erro ao excluir:", erro);
-    }
+    } catch (err) { console.error(err); }
+  }
+  const handleExcluirQubit = async (id) => {
+    if (!window.confirm("Deseja excluir este Qubit?")) return;
+    try {
+      const resposta = await fetch(`http://localhost:8000/api/qubits/${id}`, { method: 'DELETE' });
+      if (resposta.ok) setListaQubits(listaQubits.filter(q => q.id_qubit !== id));
+    } catch (err) { console.error(err); }
+  }
+
+  // 3. Criostatos
+  const handleSalvarCriostato = async () => {
+    if (!nomeCrio || !fabricanteCrio || !modeloCrio || !tempCrio) return alert("Preencha todos os campos!");
+    const url = idCrioEditando ? `http://localhost:8000/api/criostatos/${idCrioEditando}` : 'http://localhost:8000/api/criostatos';
+    const metodo = idCrioEditando ? 'PUT' : 'POST';
+    try {
+      const res = await fetch(url, {
+        method: metodo, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomeCrio, fabricante: fabricanteCrio, modelo: modeloCrio, temperatura_nominal: Number(tempCrio), status_operacional: statusCrio })
+      });
+      if (res.ok) {
+        alert("Criostato salvo com sucesso!"); limparFormCriostato();
+        fetch('http://localhost:8000/api/criostatos').then(r => r.json()).then(d => setListaCriostatos(d));
+      }
+    } catch (err) { console.error(err); }
+  }
+  const handleExcluirCriostato = async (id) => {
+    if (!window.confirm("Deseja excluir este criostato?")) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/criostatos/${id}`, { method: 'DELETE' });
+      if (res.ok) setListaCriostatos(listaCriostatos.filter(c => c.id_criostato !== id));
+    } catch (err) { console.error(err); }
+  }
+
+  // 4. Pesquisadores
+  const handleSalvarPesquisador = async () => {
+    if (!nomePesq || !emailPesq || !instituicaoPesq) return alert("Preencha os campos obrigatórios!");
+    const url = idPesqEditando ? `http://localhost:8000/api/pesquisadores/${idPesqEditando}` : 'http://localhost:8000/api/pesquisadores';
+    const metodo = idPesqEditando ? 'PUT' : 'POST';
+    try {
+      const res = await fetch(url, {
+        method: metodo, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomePesq, email: emailPesq, instituicao: instituicaoPesq, area_atuacao: areaPesq })
+      });
+      if (res.ok) {
+        alert("Pesquisador salvo com sucesso!"); limparFormPesquisador();
+        fetch('http://localhost:8000/api/pesquisadores').then(r => r.json()).then(d => setListaPesquisadores(d));
+      }
+    } catch (err) { console.error(err); }
+  }
+  const handleExcluirPesquisador = async (id) => {
+    if (!window.confirm("Deseja excluir este pesquisador?")) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/pesquisadores/${id}`, { method: 'DELETE' });
+      if (res.ok) setListaPesquisadores(listaPesquisadores.filter(p => p.id_pesquisador !== id));
+    } catch (err) { console.error(err); }
+  }
+
+  // 5. Experimentos
+  const handleSalvarExperimento = async () => {
+    if (!nomeExp || !objetivoExp) return alert("Nome e Objetivo são obrigatórios!");
+    const url = idExpEditando ? `http://localhost:8000/api/experimentos/${idExpEditando}` : 'http://localhost:8000/api/experimentos';
+    const metodo = idExpEditando ? 'PUT' : 'POST';
+    try {
+      const res = await fetch(url, {
+        method: metodo, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomeExp, objetivo: objetivoExp, data_hora_inicio: inicioExp || null, data_hora_fim: fimExp || null, status_execucao: statusExp, observacoes: obsExp, id_pesquisador: idPesqExp || null, id_qpu: idQpuExp || null, id_registro_ambiente: idAmbExp || null })
+      });
+      if (res.ok) {
+        alert("Experimento salvo com sucesso!"); limparFormExperimento();
+        fetch('http://localhost:8000/api/experimentos').then(r => r.json()).then(d => setListaExperimentos(d));
+      }
+    } catch (err) { console.error(err); }
+  }
+  const handleExcluirExperimento = async (id) => {
+    if (!window.confirm("Deseja excluir este experimento?")) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/experimentos/${id}`, { method: 'DELETE' });
+      if (res.ok) setListaExperimentos(listaExperimentos.filter(e => e.id_experimento !== id));
+    } catch (err) { console.error(err); }
+  }
+
+  // 6. Calibrações
+  const handleSalvarCalibracao = async () => {
+    if (!tipoCal || !versaoCal) return alert("Tipo e Versão são obrigatórios!");
+    const url = idCalEditando ? `http://localhost:8000/api/calibracoes/${idCalEditando}` : 'http://localhost:8000/api/calibracoes';
+    const metodo = idCalEditando ? 'PUT' : 'POST';
+    try {
+      const res = await fetch(url, {
+        method: metodo, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data_hora_inicio: inicioCal || null, data_hora_fim: fimCal || null, tipo_calibracao: tipoCal, versao_parametros: versaoCal, resultado: resultadoCal, observacoes: obsCal, id_pesquisador: idPesqCal || null, id_qpu: idQpuCal || null, id_registro_ambiente: idAmbCal || null })
+      });
+      if (res.ok) {
+        alert("Calibração salva com sucesso!"); limparFormCalibracao();
+        fetch('http://localhost:8000/api/calibracoes').then(r => r.json()).then(d => setListaCalibracoes(d));
+      }
+    } catch (err) { console.error(err); }
+  }
+  const handleExcluirCalibracao = async (id) => {
+    if (!window.confirm("Deseja excluir esta calibração?")) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/calibracoes/${id}`, { method: 'DELETE' });
+      if (res.ok) setListaCalibracoes(listaCalibracoes.filter(c => c.id_calibracao !== id));
+    } catch (err) { console.error(err); }
   }
 
   // ============== REQUISITOS DE BUSCA (EFFECTS) ==============
-  
-  // 1. Carrega as QPUs na inicialização
   useEffect(() => {
     fetch('http://localhost:8000/api/qpus')
       .then(res => res.json())
-      .then(dados => {
-        setListaQpus(dados);
-        if (dados.length > 0) setQpuSelecionada(dados[0].id_qpu);
-      })
+      .then(dados => { setListaQpus(dados); if (dados.length > 0) setQpuSelecionada(dados[0].id_qpu); })
       .catch(err => console.error(err));
   }, []);
 
-  // 2. Monitora mudanças de aba ou seleção de hardware
   useEffect(() => {
     if (telaAtual === 'dashboard' && qpuSelecionada) {
-      fetch(`http://localhost:8000/api/dashboard/qubits/${qpuSelecionada}`)
-        .then(res => res.json())
-        .then(dados => setDadosDashQubits(dados))
-        .catch(err => console.error(err));
-
-      fetch(`http://localhost:8000/api/dashboard/ambiente/${qpuSelecionada}`)
-        .then(res => res.json())
-        .then(dados => setDadosDashAmbiente(dados))
-        .catch(err => console.error(err));
+      fetch(`http://localhost:8000/api/dashboard/qubits/${qpuSelecionada}`).then(res => res.json()).then(dados => setDadosDashQubits(dados));
+      fetch(`http://localhost:8000/api/dashboard/ambiente/${qpuSelecionada}`).then(res => res.json()).then(dados => setDadosDashAmbiente(dados));
     }
-
     if (telaAtual === 'relatorios') {
-      fetch('http://localhost:8000/api/relatorios/t1').then(res => res.json()).then(dados => setDadosT1(dados)).catch(err => console.error(err));
-      fetch('http://localhost:8000/api/relatorios/fidelidade').then(res => res.json()).then(dados => setDadosFidelidade(dados)).catch(err => console.error(err));
-      fetch('http://localhost:8000/api/relatorios/temperatura').then(res => res.json()).then(dados => setDadosTemperatura(dados)).catch(err => console.error(err));
+      fetch('http://localhost:8000/api/relatorios/t1').then(res => res.json()).then(dados => setDadosT1(dados));
+      fetch('http://localhost:8000/api/relatorios/fidelidade').then(res => res.json()).then(dados => setDadosFidelidade(dados));
+      fetch('http://localhost:8000/api/relatorios/temperatura').then(res => res.json()).then(dados => setDadosTemperatura(dados));
     }
-    
-    if (telaAtual === 'qpus') {
-      fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => setListaQpus(dados)).catch(err => console.error(err));
+    if (telaAtual === 'qpus') fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => setListaQpus(dados));
+    if (telaAtual === 'criostatos') fetch('http://localhost:8000/api/criostatos').then(res => res.json()).then(dados => setListaCriostatos(dados));
+    if (telaAtual === 'pesquisadores') fetch('http://localhost:8000/api/pesquisadores').then(res => res.json()).then(dados => setListaPesquisadores(dados));
+    if (telaAtual === 'qubits') {
+      fetch('http://localhost:8000/api/qubits').then(res => res.json()).then(dados => setListaQubits(dados));
+      fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => setListaQpus(dados));
+    }
+    if (telaAtual === 'experimentos' || telaAtual === 'calibracoes') {
+      fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => setListaQpus(dados));
+      fetch('http://localhost:8000/api/pesquisadores').then(res => res.json()).then(dados => setListaPesquisadores(dados));
+      fetch('http://localhost:8000/api/registro-ambiente').then(res => res.json()).then(dados => setListaAmbientes(dados));
+      if (telaAtual === 'experimentos') fetch('http://localhost:8000/api/experimentos').then(res => res.json()).then(dados => setListaExperimentos(dados));
+      if (telaAtual === 'calibracoes') fetch('http://localhost:8000/api/calibracoes').then(res => res.json()).then(dados => setListaCalibracoes(dados));
     }
   }, [telaAtual, qpuSelecionada]);
 
-  // Auxiliar para ler as métricas calculadas no banco para os Cards
   const encontrarMetrica = (nome) => {
     const metrica = dadosDashQubits.metricas.find(m => m.nome_metrica === nome);
     return metrica ? Number(metrica.media) : null;
@@ -163,96 +327,41 @@ function App() {
                 <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Visão geral do estado da QPU e dos qubits</p>
               </div>
               <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                {/* SELECT DINÂMICO CONECTADO AO BANCO */}
-                <select 
-                  value={qpuSelecionada}
-                  onChange={(e) => setQpuSelecionada(e.target.value)}
-                  style={{ padding: '8px 12px', background: 'var(--bg-panel)', color: 'white', border: '1px solid var(--border-color)', borderRadius: '8px' }}
-                >
-                  {listaQpus.map(qpu => (
-                    <option key={qpu.id_qpu} value={qpu.id_qpu}>QPU: {qpu.nome} ({qpu.modelo})</option>
-                  ))}
+                <select value={qpuSelecionada} onChange={(e) => setQpuSelecionada(e.target.value)} style={{ padding: '8px 12px', background: 'var(--bg-panel)', color: 'white', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                  {listaQpus.map(qpu => <option key={qpu.id_qpu} value={qpu.id_qpu}>QPU: {qpu.nome} ({qpu.modelo})</option>)}
                 </select>
-                <div style={{ padding: '8px 12px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)' }}>
-                  01/05/2026 - 08/05/2026
-                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)' }}>01/05/2026 - 08/05/2026</div>
               </div>
             </div>
 
-            {/* CARDS DINÂMICOS CORRIGIDOS */}
             <div className="cards">
-              <MetricCard 
-                title="Qubits Ativos" 
-                value={`${dadosDashQubits.mapa.filter(q => q.status_operacional !== 'Inativo').length} / ${dadosDashQubits.mapa.length || 0}`} 
-              />
-              <MetricCard 
-                title="Fidelidade Média (1Q)" 
-                value={dadosDashQubits.fidelidades?.find(f => f.numero_qubits_alvo === 1) 
-                  ? `${(Number(dadosDashQubits.fidelidades.find(f => f.numero_qubits_alvo === 1).media) * 100).toFixed(2)}%` 
-                  : '---'} 
-              />
-              <MetricCard 
-                title="Fidelidade Média (2Q)" 
-                value={dadosDashQubits.fidelidades?.find(f => f.numero_qubits_alvo === 2) 
-                  ? `${(Number(dadosDashQubits.fidelidades.find(f => f.numero_qubits_alvo === 2).media) * 100).toFixed(2)}%` 
-                  : '---'} 
-              />
-              <MetricCard 
-                title="Tempo de Coerência T1 (médio)" 
-                value={encontrarMetrica('T1') ? `${encontrarMetrica('T1').toFixed(1)} μs` : '---'} 
-              />
-              <MetricCard 
-                title="Taxa de Erro de Leitura" 
-                value={encontrarMetrica('TaxaErro') ? `${(encontrarMetrica('TaxaErro') * 100).toFixed(2)}%` : '---'} 
-              />
+              <MetricCard title="Qubits Ativos" value={`${dadosDashQubits.mapa.filter(q => q.status_operacional !== 'Inativo').length} / ${dadosDashQubits.mapa.length || 0}`} />
+              <MetricCard title="Fidelidade Média (1Q)" value={dadosDashQubits.fidelidades?.find(f => f.numero_qubits_alvo === 1) ? `${(Number(dadosDashQubits.fidelidades.find(f => f.numero_qubits_alvo === 1).media) * 100).toFixed(2)}%` : '---'} />
+              <MetricCard title="Fidelidade Média (2Q)" value={dadosDashQubits.fidelidades?.find(f => f.numero_qubits_alvo === 2) ? `${(Number(dadosDashQubits.fidelidades.find(f => f.numero_qubits_alvo === 2).media) * 100).toFixed(2)}%` : '---'} />
+              <MetricCard title="Tempo de Coerência T1 (médio)" value={encontrarMetrica('T1') ? `${encontrarMetrica('T1').toFixed(1)} μs` : '---'} />
+              <MetricCard title="Taxa de Erro de Leitura" value={encontrarMetrica('TaxaErro') ? `${(encontrarMetrica('TaxaErro') * 100).toFixed(2)}%` : '---'} />
             </div>
 
             <div className="middle">
-              {/* MAPA DE QUBITS CORRIGIDO PASSANDO PROPS */}
-              <div className="panel">
-                <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Mapa de Qubits</h3>
-                <Heatmap qubits={dadosDashQubits.mapa} />
-              </div>
-              <div className="panel"><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Fidelidade de Portas</h3><div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px' }}><FidelityChart /></div></div>
-              <div className="panel"><h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Erro de Leitura</h3><div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px' }}><ReadoutChart /></div></div>
+              <div className="panel"><h3>Mapa de Qubits</h3><Heatmap qubits={dadosDashQubits.mapa} /></div>
+              <div className="panel"><h3>Fidelidade de Portas</h3><div style={{ height: '200px' }}><FidelityChart /></div></div>
+              <div className="panel"><h3>Erro de Leitura</h3><div style={{ height: '200px' }}><ReadoutChart /></div></div>
             </div>
-          
+
             <div className="bottom">
-              <div className="panel" style={{ overflowX: 'auto' }}>
-                <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Experimentos Recentes</h3>
-                <ExperimentTable />
-              </div>
-
+              <div className="panel" style={{ overflowX: 'auto' }}><h3 style={{ marginBottom: '15px' }}>Experimentos Recentes</h3><ExperimentTable /></div>
               <div className="panel">
-                 <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Alertas Ativos</h3>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ padding: '12px', borderLeft: '3px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '0 8px 8px 0' }}>
-                       <strong style={{ color: '#ef4444' }}>Qubit 13</strong>
-                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Taxa de erro de leitura acima do limite</p>
-                    </div>
-                    <div style={{ padding: '12px', borderLeft: '3px solid #eab308', background: 'rgba(234, 179, 8, 0.05)', borderRadius: '0 8px 8px 0' }}>
-                       <strong style={{ color: '#eab308' }}>Qubit 17</strong>
-                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Fidelidade de porta 2Q abaixo do esperado</p>
-                    </div>
-                 </div>
+                <h3>Alertas Ativos</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+                  <div style={{ padding: '12px', borderLeft: '3px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)' }}><strong>Qubit 13</strong><p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Taxa de erro acima do limite</p></div>
+                </div>
               </div>
-
-              {/* CONDIÇÕES DO CRIOSTATO DINÂMICAS */}
               <div className="panel">
-                <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Condições do Ambiente</h3>
-                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '15px', color: 'var(--text-muted)' }}>
-                   <li style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
-                     <span>Temperatura</span> 
-                     <strong style={{ color: 'var(--text-main)' }}>{Number(dadosDashAmbiente.temperatura).toFixed(1)} K</strong>
-                   </li>
-                   <li style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
-                     <span>Pressão</span> 
-                     <strong style={{ color: 'var(--text-main)' }}>{Number(dadosDashAmbiente.pressao).toFixed(2)} mTorr</strong>
-                   </li>
-                   <li style={{ display: 'flex', justifyContent: 'space-between' }}>
-                     <span>Vibração (RMS)</span> 
-                     <strong style={{ color: 'var(--text-main)' }}>{Number(dadosDashAmbiente.vibracao).toFixed(2)} μm/s</strong>
-                   </li>
+                <h3>Condições do Ambiente</h3>
+                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '15px', color: 'var(--text-muted)', marginTop: '15px' }}>
+                   <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Temperatura</span> <strong>{Number(dadosDashAmbiente.temperatura).toFixed(1)} K</strong></li>
+                   <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pressão</span> <strong>{Number(dadosDashAmbiente.pressao).toFixed(2)} mTorr</strong></li>
+                   <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Vibração</span> <strong>{Number(dadosDashAmbiente.vibracao).toFixed(2)} μm/s</strong></li>
                 </ul>
               </div>
             </div>
@@ -456,65 +565,267 @@ function App() {
           </div>
         )}
 
+
         {/* ================= TELA: CRUD DE QPUs ================= */}
         {telaAtual === 'qpus' && (
           <div style={{ padding: '20px', color: 'var(--text-main)' }}>
-            <h2 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Gerenciamento de QPUs</h2>
-            
+            <h2>Gerenciamento de QPUs</h2>
             <div className="panel" style={{ marginTop: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                 <h3>{idEditando ? `Editando QPU #${idEditando}` : 'Cadastrar Nova QPU'}</h3>
                 {idEditando && <button onClick={limparFormulario} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Cancelar Edição</button>}
               </div>
-
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <input value={nomeQpu} onChange={(e) => setNomeQpu(e.target.value)} type="text" placeholder="Nome" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <input value={nomeQpu} onChange={(e) => setNomeQpu(e.target.value)} type="text" placeholder="Nome (ex: QPU-01)" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
                 <input value={fabricanteQpu} onChange={(e) => setFabricanteQpu(e.target.value)} type="text" placeholder="Fabricante" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
                 <input value={modeloQpu} onChange={(e) => setModeloQpu(e.target.value)} type="text" placeholder="Modelo" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
                 <input value={tecnologiaQpu} onChange={(e) => setTecnologiaQpu(e.target.value)} type="text" placeholder="Tecnologia" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
                 <input value={dataInstalacaoQpu} onChange={(e) => setDataInstalacaoQpu(e.target.value)} type="date" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
                 <input value={idCriostato} onChange={(e) => setIdCriostato(e.target.value)} type="number" placeholder="ID do Criostato" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
-                
                 <select value={statusQpu} onChange={(e) => setStatusQpu(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
-                  <option value="Ativo">Ativo</option>
-                  <option value="Manutenção">Manutenção</option>
-                  <option value="Inativo">Inativo</option>
+                  <option value="Ativo">Ativo</option><option value="Manutenção">Manutenção</option><option value="Inativo">Inativo</option>
                 </select>
-
-                <button onClick={handleSalvarQpu} style={{ width: '100%', padding: '10px', background: idEditando ? '#eab308' : 'var(--accent-purple)', color: idEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-                  {idEditando ? 'Atualizar QPU' : 'Salvar'}
-                </button>
+                <button onClick={handleSalvarQpu} style={{ width: '100%', padding: '10px', background: idEditando ? '#eab308' : 'var(--accent-purple)', color: idEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>{idEditando ? 'Atualizar QPU' : 'Salvar QPU'}</button>
               </div>
             </div>
-
             <div className="panel" style={{ marginTop: '20px', overflowX: 'auto' }}>
               <h3 style={{ marginBottom: '15px' }}>QPUs Cadastradas</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '12px' }}>ID</th>
-                    <th style={{ padding: '12px' }}>Nome</th>
-                    <th style={{ padding: '12px' }}>Fabricante/Modelo</th>
-                    <th style={{ padding: '12px' }}>Tecnologia</th>
-                    <th style={{ padding: '12px' }}>Data Inst.</th>
-                    <th style={{ padding: '12px' }}>Criostato</th>
-                    <th style={{ padding: '12px' }}>Status</th>
-                    <th style={{ padding: '12px' }}>Ações</th>
-                  </tr>
-                </thead>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}><th>ID</th><th>Nome</th><th>Fabricante/Modelo</th><th>Tecnologia</th><th>Instalação</th><th>Criostato</th><th>Status</th><th>Ações</th></tr></thead>
                 <tbody>
-                  {listaQpus.map((qpu) => (
+                  {listaQpus.map(qpu => (
                     <tr key={qpu.id_qpu} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px' }}>{qpu.id_qpu}</td>
-                      <td style={{ padding: '12px' }}>{qpu.nome}</td>
-                      <td style={{ padding: '12px' }}>{qpu.fabricante} {qpu.modelo}</td>
-                      <td style={{ padding: '12px' }}>{qpu.tecnologia}</td>
-                      <td style={{ padding: '12px' }}>{qpu.data_instalacao ? new Date(qpu.data_instalacao).toLocaleDateString('pt-BR') : ''}</td>
-                      <td style={{ padding: '12px' }}>{qpu.id_criostato}</td>
-                      <td style={{ padding: '12px' }}>{qpu.status_operacional}</td>
+                      <td style={{ padding: '12px' }}>{qpu.id_qpu}</td><td style={{ padding: '12px' }}>{qpu.nome}</td><td style={{ padding: '12px' }}>{qpu.fabricante} {qpu.modelo}</td><td style={{ padding: '12px' }}>{qpu.tecnologia}</td><td style={{ padding: '12px' }}>{qpu.data_instalacao ? new Date(qpu.data_instalacao).toLocaleDateString('pt-BR') : ''}</td><td style={{ padding: '12px' }}>{qpu.id_criostato}</td><td style={{ padding: '12px' }}>{qpu.status_operacional}</td>
                       <td>
                         <button onClick={() => preencherFormulario(qpu)} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
                         <button onClick={() => handleExcluirQpu(qpu.id_qpu)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TELA: CRUD DE QUBITS ================= */}
+        {telaAtual === 'qubits' && (
+          <div style={{ padding: '20px', color: 'var(--text-main)' }}>
+            <h2>Gerenciamento de Qubits</h2>
+            <div className="panel" style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3>{idQubitEditando ? `Editando Qubit #${idQubitEditando}` : 'Cadastrar Novo Qubit'}</h3>
+                {idQubitEditando && <button onClick={limparFormQubit} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Cancelar</button>}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input value={indiceQubit} onChange={(e) => setIndiceQubit(e.target.value)} type="number" placeholder="Índice do Qubit" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 20%' }} />
+                <input value={tipoQubit} onChange={(e) => setTipoQubit(e.target.value)} type="text" placeholder="Tipo (ex: Transmon)" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 25%' }} />
+                <input value={frequenciaRessonancia} onChange={(e) => setFrequenciaRessonancia(e.target.value)} type="number" step="0.01" placeholder="Frequência (GHz)" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 20%' }} />
+                <select value={idQpuQubit} onChange={(e) => setIdQpuQubit(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 25%' }}>
+                  <option value="">Selecionar QPU Alvo</option>
+                  {listaQpus.map(p => <option key={p.id_qpu} value={p.id_qpu}>{p.nome}</option>)}
+                </select>
+                <select value={statusQubit} onChange={(e) => setStatusQubit(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 20%' }}>
+                  <option value="Saudável">Saudável</option><option value="Atenção">Atenção</option><option value="Crítico">Crítico</option><option value="Inativo">Inativo</option>
+                </select>
+                <input value={observacoesQubit} onChange={(e) => setObservacoesQubit(e.target.value)} type="text" placeholder="Observações" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 70%' }} />
+                <button onClick={handleSalvarQubit} style={{ width: '100%', padding: '10px', background: idQubitEditando ? '#eab308' : 'var(--accent-purple)', color: idQubitEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>{idQubitEditando ? 'Atualizar Qubit' : 'Salvar Qubit'}</button>
+              </div>
+            </div>
+            <div className="panel" style={{ marginTop: '20px', overflowX: 'auto' }}>
+              <h3>Qubits Cadastrados</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}><th>ID</th><th>Índice</th><th>Hardware (QPU)</th><th>Tipo</th><th>Frequência</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>
+                  {listaQubits.map(q => (
+                    <tr key={q.id_qubit} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px' }}>{q.id_qubit}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>q{q.indice_qubit}</td><td style={{ padding: '12px' }}>{q.qpu_nome}</td><td style={{ padding: '12px' }}>{q.tipo_qubit}</td><td style={{ padding: '12px' }}>{Number(q.frequencia_ressonancia).toFixed(2)} GHz</td><td style={{ padding: '12px' }}>{q.status_qubit}</td>
+                      <td>
+                        <button onClick={() => { setIdQubitEditando(q.id_qubit); setIndiceQubit(q.indice_qubit); setTipoQubit(q.tipo_qubit); setFrequenciaRessonancia(q.frequencia_ressonancia); setStatusQubit(q.status_qubit); setObservacoesQubit(q.observacoes || ''); setIdQpuQubit(q.id_qpu); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => handleExcluirQubit(q.id_qubit)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TELA: CRUD DE CRIOSTATOS ================= */}
+        {telaAtual === 'criostatos' && (
+          <div style={{ padding: '20px', color: 'var(--text-main)' }}>
+            <h2>Gerenciamento de Criostatos</h2>
+            <div className="panel" style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3>{idCrioEditando ? `Editando Criostato #${idCrioEditando}` : 'Cadastrar Novo Criostato'}</h3>
+                {idCrioEditando && <button onClick={limparFormCriostato} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Cancelar</button>}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input value={nomeCrio} onChange={(e) => setNomeCrio(e.target.value)} type="text" placeholder="Nome identificador" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <input value={fabricanteCrio} onChange={(e) => setFabricanteCrio(e.target.value)} type="text" placeholder="Fabricante" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <input value={modeloCrio} onChange={(e) => setModeloCrio(e.target.value)} type="text" placeholder="Modelo" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <input value={tempCrio} onChange={(e) => setTempCrio(e.target.value)} type="number" step="0.001" placeholder="Temp. Nominal (K)" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <select value={statusCrio} onChange={(e) => setStatusCrio(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }}>
+                  <option value="Ativo">Ativo</option><option value="Manutenção">Manutenção</option><option value="Inativo">Inativo</option>
+                </select>
+                <button onClick={handleSalvarCriostato} style={{ width: '100%', padding: '10px', background: idCrioEditando ? '#eab308' : 'var(--accent-purple)', color: idCrioEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>{idCrioEditando ? 'Atualizar Criostato' : 'Salvar Criostato'}</button>
+              </div>
+            </div>
+            <div className="panel" style={{ marginTop: '20px', overflowX: 'auto' }}>
+              <h3>Criostatos Cadastrados</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '15px' }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}><th>ID</th><th>Nome</th><th>Fabricante/Modelo</th><th>Temp. Nominal</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>
+                  {listaCriostatos.map(c => (
+                    <tr key={c.id_criostato} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px' }}>{c.id_criostato}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>{c.nome}</td><td style={{ padding: '12px' }}>{c.fabricante} {c.modelo}</td><td style={{ padding: '12px' }}>{Number(c.temperatura_nominal).toFixed(3)} K</td><td style={{ padding: '12px' }}>{c.status_operacional}</td>
+                      <td>
+                        <button onClick={() => { setIdCrioEditando(c.id_criostato); setNomeCrio(c.nome); setFabricanteCrio(c.fabricante); setModeloCrio(c.modelo); setTempCrio(c.temperatura_nominal); setStatusCrio(c.status_operacional); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => handleExcluirCriostato(c.id_criostato)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TELA: CRUD DE PESQUISADORES ================= */}
+        {telaAtual === 'pesquisadores' && (
+          <div style={{ padding: '20px', color: 'var(--text-main)' }}>
+            <h2>Corpo de Pesquisadores</h2>
+            <div className="panel" style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3>{idPesqEditando ? `Editando Cadastro #${idPesqEditando}` : 'Cadastrar Novo Pesquisador'}</h3>
+                {idPesqEditando && <button onClick={limparFormPesquisador} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Cancelar</button>}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input value={nomePesq} onChange={(e) => setNomePesq(e.target.value)} type="text" placeholder="Nome Completo" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={emailPesq} onChange={(e) => setEmailPesq(e.target.value)} type="email" placeholder="E-mail" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={instituicaoPesq} onChange={(e) => setInstituicaoPesq(e.target.value)} type="text" placeholder="Instituição" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={areaPesq} onChange={(e) => setAreaPesq(e.target.value)} type="text" placeholder="Área de Atuação" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <button onClick={handleSalvarPesquisador} style={{ width: '100%', padding: '10px', background: idPesqEditando ? '#eab308' : 'var(--accent-purple)', color: idPesqEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>{idPesqEditando ? 'Atualizar Cadastro' : 'Cadastrar Pesquisador'}</button>
+              </div>
+            </div>
+            <div className="panel" style={{ marginTop: '20px', overflowX: 'auto' }}>
+              <h3>Pesquisadores Registrados</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '15px' }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}><th>ID</th><th>Nome</th><th>E-mail</th><th>Instituição</th><th>Área</th><th>Ações</th></tr></thead>
+                <tbody>
+                  {listaPesquisadores.map(p => (
+                    <tr key={p.id_pesquisador} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px' }}>{p.id_pesquisador}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>{p.nome}</td><td style={{ padding: '12px' }}>{p.email}</td><td style={{ padding: '12px' }}>{p.instituicao}</td><td style={{ padding: '12px' }}>{p.area_atuacao}</td>
+                      <td>
+                        <button onClick={() => { setIdPesqEditando(p.id_pesquisador); setNomePesq(p.nome); setEmailPesq(p.email); setInstituicaoPesq(p.instituicao || ''); setAreaPesq(p.area_atuacao || ''); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => handleExcluirPesquisador(p.id_pesquisador)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TELA: CRUD DE EXPERIMENTOS ================= */}
+        {telaAtual === 'experimentos' && (
+          <div style={{ padding: '20px', color: 'var(--text-main)' }}>
+            <h2>Gerenciamento de Experimentos</h2>
+            <div className="panel" style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3>{idExpEditando ? `Editando Experimento #${idExpEditando}` : 'Registrar Novo Experimento'}</h3>
+                {idExpEditando && <button onClick={limparFormExperimento} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Cancelar</button>}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input value={nomeExp} onChange={(e) => setNomeExp(e.target.value)} type="text" placeholder="Nome do Experimento" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={objetivoExp} onChange={(e) => setObjetivoExp(e.target.value)} type="text" placeholder="Objetivo Científico" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={inicioExp} onChange={(e) => setInicioExp(e.target.value)} type="datetime-local" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <input value={fimExp} onChange={(e) => setFimExp(e.target.value)} type="datetime-local" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <select value={statusExp} onChange={(e) => setStatusExp(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="Planejado">Planejado</option><option value="Em Execução">Em Execução</option><option value="Concluído">Concluído</option><option value="Falhou">Falhou</option>
+                </select>
+                <select value={idPesqExp} onChange={(e) => setIdPesqExp(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="">Pesquisador Responsável</option>
+                  {listaPesquisadores.map(p => <option key={p.id_pesquisador} value={p.id_pesquisador}>{p.nome}</option>)}
+                </select>
+                <select value={idQpuExp} onChange={(e) => setIdQpuExp(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="">Processador Alvo (QPU)</option>
+                  {listaQpus.map(p => <option key={p.id_qpu} value={p.id_qpu}>{p.nome}</option>)}
+                </select>
+                <select value={idAmbExp} onChange={(e) => setIdAmbExp(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="">Log de Ambiente Vinculado</option>
+                  {listaAmbientes.map(a => <option key={a.id_registro_ambiente} value={a.id_registro_ambiente}>Log #{a.id_registro_ambiente} ({new Date(a.data_hora_registro).toLocaleString('pt-BR')})</option>)}
+                </select>
+                <input value={obsExp} onChange={(e) => setObsExp(e.target.value)} type="text" placeholder="Observações Gerais" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 100%' }} />
+                <button onClick={handleSalvarExperimento} style={{ width: '100%', padding: '10px', background: idExpEditando ? '#eab308' : 'var(--accent-purple)', color: idExpEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>{idExpEditando ? 'Atualizar Experimento' : 'Salvar Experimento'}</button>
+              </div>
+            </div>
+            <div className="panel" style={{ marginTop: '20px', overflowX: 'auto' }}>
+              <h3>Experimentos Cadastrados</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '15px' }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}><th>ID</th><th>Nome</th><th>QPU</th><th>Pesquisador</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>
+                  {listaExperimentos.map(e => (
+                    <tr key={e.id_experimento} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px' }}>{e.id_experimento}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>{e.nome}</td><td style={{ padding: '12px' }}>{e.qpu_nome}</td><td style={{ padding: '12px' }}>{e.pesquisador_nome}</td><td style={{ padding: '12px' }}>{e.status_execucao}</td>
+                      <td>
+                        <button onClick={() => { setIdExpEditando(e.id_experimento); setNomeExp(e.nome); setObjetivoExp(e.objetivo); setStatusExp(e.status_execucao); setObsExp(e.observacoes || ''); setIdPesqExp(e.id_pesquisador || ''); setIdQpuExp(e.id_qpu || ''); setIdAmbExp(e.id_registro_ambiente || ''); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => handleExcluirExperimento(e.id_experimento)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TELA: CRUD DE CALIBRAÇÕES ================= */}
+        {telaAtual === 'calibracoes' && (
+          <div style={{ padding: '20px', color: 'var(--text-main)' }}>
+            <h2>Gerenciamento de Calibrações</h2>
+            <div className="panel" style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3>{idCalEditando ? `Editando Calibração #${idCalEditando}` : 'Registrar Nova Calibração'}</h3>
+                {idCalEditando && <button onClick={limparFormCalibracao} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Cancelar</button>}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input value={tipoCal} onChange={(e) => setTipoCal(e.target.value)} type="text" placeholder="Tipo de Calibração (ex: Rabi Oscillation)" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={versaoCal} onChange={(e) => setVersaoCal(e.target.value)} type="text" placeholder="Versão dos Parâmetros" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 45%' }} />
+                <input value={inicioCal} onChange={(e) => setInicioCal(e.target.value)} type="datetime-local" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <input value={fimCal} onChange={(e) => setFimCal(e.target.value)} type="datetime-local" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }} />
+                <select value={resultadoCal} onChange={(e) => setResultCal(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="Sucesso">Sucesso</option><option value="Otimização Parcial">Otimização Parcial</option><option value="Falha Crítica">Falha Crítica</option>
+                </select>
+                <select value={idPesqCal} onChange={(e) => setIdPesqCal(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="">Pesquisador Responsável</option>
+                  {listaPesquisadores.map(p => <option key={p.id_pesquisador} value={p.id_pesquisador}>{p.nome}</option>)}
+                </select>
+                <select value={idQpuCal} onChange={(e) => setIdQpuCal(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="">QPU Calibrada</option>
+                  {listaQpus.map(p => <option key={p.id_qpu} value={p.id_qpu}>{p.nome}</option>)}
+                </select>
+                <select value={idAmbCal} onChange={(e) => setIdAmbCal(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 30%' }}>
+                  <option value="">Log de Ambiente Vinculado</option>
+                  {listaAmbientes.map(a => <option key={a.id_registro_ambiente} value={a.id_registro_ambiente}>Log #{a.id_registro_ambiente}</option>)}
+                </select>
+                <input value={obsCal} onChange={(e) => setObsCal(e.target.value)} type="text" placeholder="Observações" style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white', flex: '1 1 100%' }} />
+                <button onClick={handleSalvarCalibracao} style={{ width: '100%', padding: '10px', background: idCalEditando ? '#eab308' : 'var(--accent-purple)', color: idCalEditando ? 'black' : 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>{idCalEditando ? 'Atualizar Calibração' : 'Salvar Calibração'}</button>
+              </div>
+            </div>
+            <div className="panel" style={{ marginTop: '20px', overflowX: 'auto' }}>
+              <h3>Calibrações Cadastradas</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '15px' }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}><th>ID</th><th>Tipo</th><th>QPU</th><th>Versão</th><th>Resultado</th><th>Ações</th></tr></thead>
+                <tbody>
+                  {listaCalibracoes.map(c => (
+                    <tr key={c.id_calibracao} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px' }}>{c.id_calibracao}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>{c.tipo_calibracao}</td><td style={{ padding: '12px' }}>{c.qpu_nome}</td><td style={{ padding: '12px' }}>{c.versao_parametros}</td><td style={{ padding: '12px' }}>{c.resultado}</td>
+                      <td>
+                        <button onClick={() => { setIdCalEditando(c.id_calibracao); setInicioCal(c.data_hora_inicio || ''); setFimCal(c.data_hora_fim || ''); setTipoCal(c.tipo_calibracao); setVersaoCal(c.versao_parametros); setResultadoCal(c.resultado); setObsCal(c.observacoes || ''); setIdPesqCal(c.id_pesquisador || ''); setIdQpuCal(c.id_qpu || ''); setIdAmbCal(c.id_registro_ambiente || ''); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => handleExcluirCalibracao(c.id_calibracao)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
                       </td>
                     </tr>
                   ))}
