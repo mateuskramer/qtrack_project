@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -7,11 +8,11 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'qtrack',
-  password: '1234',
-  port: 5432,
+  user: process.env.PGUSER || 'postgres',
+  host: process.env.PGHOST || 'localhost',
+  database: process.env.PGDATABASE || 'qtrack',
+  password: process.env.PGPASSWORD || '1234',
+  port: parseInt(process.env.PGPORT || '5432'),
 });
 
 // Auxiliar para popular selects de logs ambientais nas chaves estrangeiras
@@ -396,6 +397,245 @@ app.get('/api/dashboard/ambiente/:id_qpu', async (req, res) => {
     const result = await pool.query(`SELECT ra.temperatura, ra.pressao, ra.vibracao FROM RegistroAmbiente ra JOIN Experimento e ON ra.id_registro_ambiente = e.id_registro_ambiente JOIN MedeQubit mq ON e.id_experimento = mq.id_experimento JOIN Qubit q ON mq.id_qubit = q.id_qubit WHERE q.id_qpu = $1::integer ORDER BY ra.data_hora_registro DESC LIMIT 1;`, [id_qpu]);
     res.json(result.rows[0] || { temperatura: 0, pressao: 0, vibracao: 0 });
   } catch (err) { console.error(err.message); res.status(500).send('Erro no Dashboard Ambiente'); }
+});
+
+// Helper de segurança para validar consultas SQL geradas por IA
+function isSafeSql(sql) {
+  const cleanSql = sql.trim().toUpperCase();
+  if (!cleanSql.startsWith('SELECT')) {
+    return false;
+  }
+  const forbiddenKeywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'TRUNCATE', 'CREATE', 'GRANT', 'REVOKE'];
+  for (const keyword of forbiddenKeywords) {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    if (regex.test(cleanSql)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Endpoint do Copilot Inteligente com Gemini
+// Endpoint para listar os modelos disponíveis para a chave do usuário
+app.get('/api/copilot/models', async (req, res) => {
+  try {
+    const apiKey = req.query.apiKey || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Gemini API Key não fornecida.' });
+    }
+    
+    // Tenta primeiro no endpoint v1
+    let response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+    if (!response.ok) {
+      // Se der erro, tenta no v1beta
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    }
+    
+    if (!response.ok) {
+      const errData = await response.json();
+      return res.status(response.status).json({ error: errData.error?.message || 'Erro ao consultar modelos.' });
+    }
+    
+    const data = await response.json();
+    const filteredModels = data.models
+      ? data.models.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+      : [];
+      
+    res.json({ models: filteredModels });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint do Copilot Inteligente com Gemini
+app.post('/api/copilot/chat', async (req, res) => {
+  try {
+    const { message, history, apiKey, model } = req.body;
+    const keyToUse = apiKey || process.env.GEMINI_API_KEY;
+
+    if (!keyToUse) {
+      return res.status(400).json({ error: 'Gemini API Key não fornecida. Configure no arquivo .env ou informe na interface.' });
+    }
+
+    const systemPrompt = `Você é o Copilot QTrack, um assistente inteligente e amigável integrado ao sistema de monitoramento de hardware quântico (QPU, Criostatos e Qubits).
+Sua principal função é atuar como um colega de laboratório (co-worker) para ajudar pesquisadores a analisarem dados, tomarem decisões e consultarem o banco de dados PostgreSQL.
+
+Você tem acesso a um banco de dados PostgreSQL com as seguintes tabelas e estruturas exatas (use sempre nomes de tabelas e colunas em minúsculas nas queries):
+
+1. qpu (id_qpu, nome, fabricante, modelo, tecnologia, data_instalacao, status_operacional, id_criostato)
+   - Valores típicos para status_operacional: 'Operacional', 'Inativo', 'Manutenção'
+2. criostato (id_criostato, nome, fabricante, modelo, temperatura_nominal, status_operacional)
+   - Valores típicos para status_operacional: 'Operacional', 'Inativo'
+3. qubit (id_qubit, indice_qubit, tipo_qubit, frequencia_ressonancia, status_qubit, observacoes, id_qpu)
+   - Valores típicos para status_qubit: 'Ativo', 'Instável', 'Inoperante'
+4. pesquisador (id_pesquisador, nome, email, instituicao, area_atuacao)
+5. experimento (id_experimento, nome, objetivo, data_hora_inicio, data_hora_fim, status_execucao, observacoes, id_pesquisador, id_qpu, id_registro_ambiente)
+6. calibracao (id_calibracao, data_hora_inicio, data_hora_fim, tipo_calibracao, versao_parametros, resultado, observacoes, id_pesquisador, id_qpu, id_registro_ambiente)
+   - Valores típicos para resultado: 'Sucesso', 'Parcial', 'Falha'
+7. registroambiente (id_registro_ambiente, data_hora_registro, temperatura, pressao, umidade, vibracao, campo_magnetico, observacoes)
+8. medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao, observacoes)
+   - Valores típicos para nome_metrica: 'T1', 'T2', 'Fidelidade', 'TaxaErro'
+9. medeporta (id_experimento, id_porta, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao, observacoes)
+   - Valores típicos para nome_metrica: 'Fidelidade'
+10. portaquantica (id_porta, nome_porta, categoria, numero_qubits_alvo, descricao)
+11. sequenciapulso (id_sequencia, nome, finalidade, versao, descricao)
+12. pulso (id_pulso, ordem, tipo_pulso, amplitude, duracao, frequencia, fase, forma_onda, id_sequencia)
+13. abrange (id_calibracao, id_qubit, parametro_ajustado, valor_antes, valor_depois)
+14. atuasobre (id_porta, id_qubit)
+15. implementa (id_sequencia, id_porta)
+16. utilizacalibracao (id_calibracao, id_sequencia)
+17. utilizaexperimento (id_experimento, id_sequencia)
+
+Regras Importantes de Execução (Conversa e Interpretação):
+1. **Seja Conversacional e Amigável:** Não se limite a responder apenas com dados puros. Responda saudações (como "Oi", "Olá", "Tudo bem?"), agradecimentos, apresente-se como o Copilot e mantenha uma atitude acolhedora e prestativa de colega de trabalho.
+2. **Capacidade de Conversa Conceitual:** Se o usuário fizer perguntas conceituais (ex: "O que é o tempo T1?", "Como funciona um criostato?", "O que faz a métrica Fidelidade?"), responda de forma rica e didática diretamente, em português, sem gerar blocos "[SQL]".
+3. **Interpretação Flexível (NLP-to-SQL):** Não seja rígido. Se o usuário fizer perguntas vagas ou informais (ex: "quem está trabalhando mais?", "como está a temperatura lá?", "tem alguma máquina com problemas?"), interprete quais tabelas contêm a resposta adequada:
+   - "quem trabalha mais?" -> conte experimentos ou calibrações agrupados por pesquisador.
+   - "máquina com problemas" -> busque QPUs com status 'Manutenção' ou 'Inativo', ou qubits 'Instável'/'Inoperante'.
+   - Escreva a query SELECT necessária para obter os dados relevantes.
+4. **Respostas em duas etapas:** Se o usuário pedir informações do banco, responda APENAS com a instrução SQL SELECT necessária no formato "[SQL] <sua consulta SELECT>". Quando receber os dados JSON do banco (começando com "[RESULTADO]"), elabore uma resposta final bem estruturada em português usando Markdown. Não exiba a query SQL no texto da resposta final.
+5. **Segurança:** Nunca execute comandos que alterem dados (INSERT, UPDATE, DELETE). Apenas execute queries SELECT.
+
+Exemplos de Tradução (NLP-to-SQL):
+- Pergunta: "Olá, pode me dizer quais QPUs estão ativas?"
+  Resposta: [SQL] SELECT nome, fabricante, modelo, status_operacional FROM qpu WHERE status_operacional = 'Operacional';
+- Pergunta: "Quais qubits tem o menor T1?"
+  Resposta: [SQL] SELECT q.id_qubit, q.indice_qubit, q.id_qpu, mq.valor as t1_valor FROM qubit q JOIN medequbit mq ON q.id_qubit = mq.id_qubit WHERE mq.nome_metrica = 'T1' ORDER BY mq.valor ASC LIMIT 5;
+- Pergunta: "Quem fez mais experimentos aqui no laboratório?"
+  Resposta: [SQL] SELECT p.nome, COUNT(e.id_experimento) as total_experimentos FROM pesquisador p JOIN experimento e ON p.id_pesquisador = e.id_pesquisador GROUP BY p.nome ORDER BY total_experimentos DESC LIMIT 3;`;
+
+    const contents = [];
+    
+    if (history && history.length > 0) {
+      history.forEach((item, idx) => {
+        let textVal = item.text;
+        if (idx === 0) {
+          textVal = `${systemPrompt}\n\n[INÍCIO DA CONVERSA]\n${textVal}`;
+        }
+        contents.push({
+          role: item.role === 'user' ? 'user' : 'model',
+          parts: [{ text: textVal }]
+        });
+      });
+      contents.push({
+        role: 'user',
+        parts: [{ text: message }]
+      });
+    } else {
+      contents.push({
+        role: 'user',
+        parts: [{ text: `${systemPrompt}\n\n[INÍCIO DA CONVERSA]\n${message}` }]
+      });
+    }
+
+    const callGemini = async (contentsList, preferredModel = null) => {
+      const modelsToTry = preferredModel ? [preferredModel] : [
+        'gemini-1.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.5-flash',
+        'gemini-1.5-pro'
+      ];
+      
+      let lastError = null;
+      const apiVersions = ['v1', 'v1beta'];
+
+      for (const modelName of modelsToTry) {
+        const cleanModelName = modelName.replace('models/', '');
+        
+        for (const apiVersion of apiVersions) {
+          try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModelName}:generateContent?key=${keyToUse}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: contentsList,
+                generationConfig: {
+                  temperature: 0.2
+                }
+              })
+            });
+            
+            if (!response.ok) {
+              const errData = await response.json();
+              if (response.status === 404 || (errData.error?.message && (errData.error.message.includes('not found') || errData.error.message.includes('not supported')))) {
+                lastError = new Error(errData.error?.message || `Erro no modelo ${cleanModelName} (${apiVersion})`);
+                continue;
+              }
+              throw new Error(errData.error?.message || `Erro na chamada da API Gemini com ${cleanModelName}`);
+            }
+            
+            const data = await response.json();
+            return {
+              text: data.candidates[0].content.parts[0].text,
+              activeModel: cleanModelName,
+              apiVersion: apiVersion
+            };
+          } catch (err) {
+            lastError = err;
+            if (err.message.includes('API key') || err.message.includes('key not valid')) {
+              throw err;
+            }
+          }
+        }
+      }
+      throw lastError || new Error('Nenhum modelo do Gemini respondeu com sucesso.');
+    };
+
+    let result = await callGemini(contents, model);
+    let geminiResponse = result.text;
+    let modelUsed = result.activeModel;
+
+    if (geminiResponse.trim().startsWith('[SQL]')) {
+      const sqlQuery = geminiResponse.replace('[SQL]', '').trim();
+      
+      if (!isSafeSql(sqlQuery)) {
+        return res.json({
+          response: "Desculpe, por motivos de segurança, eu só posso executar consultas de leitura (SELECT) e não posso rodar comandos que alterem o banco de dados."
+        });
+      }
+
+      let dbResultRows = null;
+      let dbErrorMsg = null;
+
+      try {
+        const dbResult = await pool.query(sqlQuery);
+        dbResultRows = dbResult.rows;
+      } catch (dbErr) {
+        dbErrorMsg = dbErr.message;
+      }
+
+      contents.push({
+        role: 'model',
+        parts: [{ text: geminiResponse }]
+      });
+
+      if (dbErrorMsg) {
+        contents.push({
+          role: 'user',
+          parts: [{ text: `[RESULTADO] Erro ao executar consulta SQL: ${dbErrorMsg}. Corrija a query se necessário ou explique o erro.` }]
+        });
+      } else {
+        contents.push({
+          role: 'user',
+          parts: [{ text: `[RESULTADO] ${JSON.stringify(dbResultRows)}` }]
+        });
+      }
+
+      try {
+        const finalResult = await callGemini(contents, modelUsed);
+        res.json({ response: finalResult.text, sql: sqlQuery, dbResult: dbResultRows, error: dbErrorMsg, model: modelUsed });
+      } catch (geminiErr) {
+        console.error(geminiErr);
+        res.status(502).json({ error: `Erro na resposta final do Gemini: ${geminiErr.message}` });
+      }
+    } else {
+      res.json({ response: geminiResponse, model: modelUsed });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(8000, () => { console.log('Backend rodando na porta 8000'); });

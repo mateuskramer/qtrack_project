@@ -7,6 +7,7 @@ import Heatmap from './components/Heatmap'
 import ExperimentTable from './components/ExperimentTable'
 import FidelityChart from './components/FidelityChart'
 import ReadoutChart from './components/ReadoutChart'
+import Copilot from './components/Copilot'
 
 // Importações do Recharts para os gráficos dos relatórios
 import { 
@@ -833,6 +834,10 @@ function App() {
               </table>
             </div>
           </div>
+        )}
+
+        {telaAtual === 'copilot' && (
+          <Copilot />
         )}
       </main>
     </div>
