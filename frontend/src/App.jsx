@@ -8,6 +8,7 @@ import ExperimentTable from './components/ExperimentTable'
 import FidelityChart from './components/FidelityChart'
 import ReadoutChart from './components/ReadoutChart'
 import Copilot from './components/Copilot'
+import CopilotHistory from './components/CopilotHistory'
 
 // Importações do Recharts para os gráficos dos relatórios
 import { 
@@ -19,6 +20,46 @@ function App() {
   const [telaAtual, setTelaAtual] = useState('dashboard')
   const [listaQpus, setListaQpus] = useState([])
   const [listaAmbientes, setListaAmbientes] = useState([])
+
+  // Estado para armazenar as várias conversas do Copilot
+  const [conversations, setConversations] = useState(() => {
+    const saved = localStorage.getItem('qtrack_conversations');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Erro ao carregar conversas do localStorage:", e);
+      }
+    }
+    return [
+      {
+        id: 'default',
+        title: 'Conversa Inicial',
+        messages: [
+          {
+            role: 'assistant',
+            text: 'Olá! Sou o Copilot do QTrack. Posso responder dúvidas conceituais de computação quântica ou fazer consultas diretas no banco de dados para analisar o status das QPUs, qubits, criostatos, calibrações e experimentos. Como posso te ajudar hoje?'
+          }
+        ]
+      }
+    ];
+  });
+
+  // ID da conversa ativa no momento do Copilot
+  const [activeConvId, setActiveConvId] = useState(() => {
+    const savedActive = localStorage.getItem('qtrack_active_conv_id');
+    return savedActive || 'default';
+  });
+
+  // Salva conversas no localStorage sempre que alteradas
+  useEffect(() => {
+    localStorage.setItem('qtrack_conversations', JSON.stringify(conversations));
+  }, [conversations]);
+
+  // Salva ID da conversa ativa no localStorage
+  useEffect(() => {
+    localStorage.setItem('qtrack_active_conv_id', activeConvId);
+  }, [activeConvId]);
 
   // Estados para armazenar os dados dos relatórios (Abas acadêmicas)
   const [dadosT1, setDadosT1] = useState([])
@@ -837,7 +878,22 @@ function App() {
         )}
 
         {telaAtual === 'copilot' && (
-          <Copilot />
+          <Copilot 
+            conversations={conversations}
+            setConversations={setConversations}
+            activeConvId={activeConvId}
+            setActiveConvId={setActiveConvId}
+          />
+        )}
+
+        {telaAtual === 'copilot_history' && (
+          <CopilotHistory 
+            conversations={conversations}
+            setConversations={setConversations}
+            activeConvId={activeConvId}
+            setActiveConvId={setActiveConvId}
+            setTelaAtual={setTelaAtual}
+          />
         )}
       </main>
     </div>

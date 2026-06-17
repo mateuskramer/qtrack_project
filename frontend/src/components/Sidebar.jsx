@@ -46,6 +46,7 @@ export default function Sidebar({ telaAtual, setTelaAtual }) {
           ASSISTENTE DE IA
         </div>
         <li className={isActive('copilot')} onClick={() => setTelaAtual('copilot')} style={{ cursor: 'pointer' }}>🤖 Copilot QTrack</li>
+        <li className={isActive('copilot_history')} onClick={() => setTelaAtual('copilot_history')} style={{ cursor: 'pointer' }}>📂 Histórico de Chats</li>
 
       </ul>
     </aside>

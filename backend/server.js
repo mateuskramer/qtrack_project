@@ -448,6 +448,88 @@ app.get('/api/copilot/models', async (req, res) => {
   }
 });
 
+// Helper para gerar respostas locais simuladas (Modo Demonstrativo ou Contingência)
+function getMockResponse(message) {
+  const msg = message.toLowerCase();
+  
+  if (msg.includes('qpu') || msg.includes('hardware')) {
+    return {
+      sql: "SELECT nome, fabricante, modelo, status_operacional FROM qpu WHERE status_operacional = 'Operacional';",
+      template: (rows) => {
+        if (!rows || rows.length === 0) return "Não encontrei nenhuma QPU ativa no momento no banco de dados.";
+        let res = "Olá! Identifiquei as seguintes QPUs ativas no banco de dados (Modo Demonstrativo/Contingência):\n\n";
+        rows.forEach(r => {
+          res += `* **${r.nome}** (${r.fabricante} ${r.modelo}) - Status: \`${r.status_operacional}\`\n`;
+        });
+        res += "\nEsses processadores quânticos estão operando normalmente.";
+        return res;
+      }
+    };
+  }
+  
+  if (msg.includes('qubit') && (msg.includes('t1') || msg.includes('relaxamento') || msg.includes('menor'))) {
+    return {
+      sql: "SELECT q.id_qubit, q.indice_qubit, q.id_qpu, mq.valor FROM qubit q JOIN medequbit mq ON q.id_qubit = mq.id_qubit WHERE mq.nome_metrica = 'T1' ORDER BY mq.valor ASC LIMIT 5;",
+      template: (rows) => {
+        if (!rows || rows.length === 0) return "Não há medições de T1 registradas no banco de dados.";
+        let res = "Aqui está a análise de tempos de relaxamento T1 (menores valores) do banco de dados (Modo Demonstrativo/Contingência):\n\n";
+        rows.forEach(r => {
+          res += `* **Qubit #${r.indice_qubit}** (QPU #${r.id_qpu}) - T1: **${Number(r.valor).toFixed(2)} µs**\n`;
+        });
+        res += "\nValores baixos de T1 indicam que esses qubits estão perdendo coerência mais rapidamente e podem precisar de recalibração.";
+        return res;
+      }
+    };
+  }
+  
+  if (msg.includes('qubit') && (msg.includes('instavel') || msg.includes('inoperante') || msg.includes('problema') || msg.includes('status'))) {
+    return {
+      sql: "SELECT id_qubit, indice_qubit, status_qubit, id_qpu FROM qubit WHERE status_qubit IN ('Instável', 'Inoperante');",
+      template: (rows) => {
+        if (!rows || rows.length === 0) return "Excelente notícia! Todos os qubits cadastrados estão ativos e estáveis no banco de dados (Modo Demonstrativo/Contingência).";
+        let res = "Atenção, identifiquei qubits com anomalias no banco de dados:\n\n";
+        rows.forEach(r => {
+          res += `* **Qubit #${r.indice_qubit}** (QPU #${r.id_qpu}) - Status: \`${r.status_qubit}\`\n`;
+        });
+        return res;
+      }
+    };
+  }
+  
+  if (msg.includes('criostato') || msg.includes('temperatura')) {
+    return {
+      sql: "SELECT nome, fabricante, modelo, temperatura_nominal FROM criostato WHERE temperatura_nominal < 0.1;",
+      template: (rows) => {
+        if (!rows || rows.length === 0) return "Nenhum criostato operando abaixo de 0.1 K foi encontrado.";
+        let res = "Os seguintes criostatos de diluição ultra-fria estão ativos no banco (Modo Demonstrativo/Contingência):\n\n";
+        rows.forEach(r => {
+          res += `* **${r.nome}** (${r.fabricante} ${r.modelo}) - Temp Nominal: **${r.temperatura_nominal} K**\n`;
+        });
+        return res;
+      }
+    };
+  }
+
+  if (msg.includes('calibrac') || msg.includes('sucesso') || msg.includes('resultado')) {
+    return {
+      sql: "SELECT resultado, COUNT(*) as total FROM calibracao GROUP BY resultado;",
+      template: (rows) => {
+        if (!rows || rows.length === 0) return "Nenhuma calibração encontrada no histórico.";
+        let res = "Aqui está o resumo das calibrações de hardware do banco (Modo Demonstrativo/Contingência):\n\n";
+        rows.forEach(r => {
+          res += `* Resultado: **${r.resultado}** - Total: **${r.total}**\n`;
+        });
+        return res;
+      }
+    };
+  }
+
+  return {
+    isGeneral: true,
+    response: "Olá! No momento estamos operando no **Modo de Demonstração Local** (limite de cota atingido ou chave 'mock'). Posso responder sobre 'QPUs', 'qubits instáveis', 'criostatos', 'T1' ou 'calibrações' consultando seu banco de dados!"
+  };
+}
+
 // Endpoint do Copilot Inteligente com Gemini
 app.post('/api/copilot/chat', async (req, res) => {
   try {
@@ -456,6 +538,18 @@ app.post('/api/copilot/chat', async (req, res) => {
 
     if (!keyToUse) {
       return res.status(400).json({ error: 'Gemini API Key não fornecida. Configure no arquivo .env ou informe na interface.' });
+    }
+
+    // Se o usuário digitou 'mock' no frontend, entra diretamente no Modo Demonstrativo Local
+    if (keyToUse.toLowerCase() === 'mock') {
+      const mock = getMockResponse(message);
+      if (mock.isGeneral) {
+        return res.json({ response: mock.response, model: 'MockAgent' });
+      } else {
+        const dbResult = await pool.query(mock.sql);
+        const text = mock.template(dbResult.rows);
+        return res.json({ response: text, sql: mock.sql, dbResult: dbResult.rows, model: 'MockAgent' });
+      }
     }
 
     const systemPrompt = `Você é o Copilot QTrack, um assistente inteligente e amigável integrado ao sistema de monitoramento de hardware quântico (QPU, Criostatos e Qubits).
@@ -582,12 +676,31 @@ Exemplos de Tradução (NLP-to-SQL):
       throw lastError || new Error('Nenhum modelo do Gemini respondeu com sucesso.');
     };
 
-    let result = await callGemini(contents, model);
-    let geminiResponse = result.text;
-    let modelUsed = result.activeModel;
+    let result;
+    let geminiResponse;
+    let modelUsed;
 
-    if (geminiResponse.trim().startsWith('[SQL]')) {
-      const sqlQuery = geminiResponse.replace('[SQL]', '').trim();
+    try {
+      result = await callGemini(contents, model);
+      geminiResponse = result.text;
+      modelUsed = result.activeModel;
+    } catch (geminiErr) {
+      console.warn("Falha ao chamar Gemini (Cota/Limite), usando contingência local...", geminiErr.message);
+      const mock = getMockResponse(message);
+      const suffix = `\n\n*(⚠️ Nota: A API do Gemini retornou erro de limite de cota: "${geminiErr.message}". O sistema ativou o agente de contingência local para responder usando dados reais do seu banco de dados.)*`;
+      if (mock.isGeneral) {
+        return res.json({ response: mock.response + suffix, model: 'MockAgent' });
+      } else {
+        const dbResult = await pool.query(mock.sql);
+        const text = mock.template(dbResult.rows);
+        return res.json({ response: text + suffix, sql: mock.sql, dbResult: dbResult.rows, model: 'MockAgent' });
+      }
+    }
+
+    const sqlMatch = geminiResponse.match(/\[SQL\]\s*([\s\S]+)$/i);
+    if (sqlMatch) {
+      let sqlQuery = sqlMatch[1].trim();
+      sqlQuery = sqlQuery.replace(/^```sql\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/, '').trim();
       
       if (!isSafeSql(sqlQuery)) {
         return res.json({
@@ -626,8 +739,16 @@ Exemplos de Tradução (NLP-to-SQL):
         const finalResult = await callGemini(contents, modelUsed);
         res.json({ response: finalResult.text, sql: sqlQuery, dbResult: dbResultRows, error: dbErrorMsg, model: modelUsed });
       } catch (geminiErr) {
-        console.error(geminiErr);
-        res.status(502).json({ error: `Erro na resposta final do Gemini: ${geminiErr.message}` });
+        console.warn("Falha na segunda chamada Gemini, usando formatação de contingência local...", geminiErr.message);
+        const mock = getMockResponse(message);
+        const suffix = `\n\n*(⚠️ Nota: Erro de limite de cota do Gemini ao formatar resposta final. Exibindo dados obtidos diretamente do banco de dados.)*`;
+        let text = "";
+        if (!mock.isGeneral && mock.template) {
+          text = mock.template(dbResultRows);
+        } else {
+          text = `Encontrei ${dbResultRows?.length || 0} registros correspondentes no banco de dados.`;
+        }
+        res.json({ response: text + suffix, sql: sqlQuery, dbResult: dbResultRows, error: dbErrorMsg, model: 'MockAgent' });
       }
     } else {
       res.json({ response: geminiResponse, model: modelUsed });
