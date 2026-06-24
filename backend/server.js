@@ -1274,14 +1274,34 @@ app.post('/api/db/init', async (req, res) => {
       const expResult = await client.query(insertExpQuery);
       const expRows = expResult.rows;
 
-      // Calibrações
-      await client.query(`
+      // Calibrações periódicas a cada 15 dias para criar o padrão dente de serra no T1
+      const calValues = [];
+      const calDays = [100, 85, 70, 55, 40, 25, 10];
+      
+      for (const calDay of calDays) {
+        const ambIdx = 105 - calDay;
+        const ambRow = ambRows[ambIdx];
+        const ambId = ambRow.id_registro_ambiente;
+        
+        // Calibração QPU 1
+        calValues.push(`(NOW() - (${calDay} * INTERVAL '1 day'), NOW() - (${calDay} * INTERVAL '1 day') + INTERVAL '1 hour', 'Frequência e Pi-Pulso', 'v2.0.${100 - calDay}', 'Sucesso', 'Recalibração periódica automática dos qubits', 1, 1, ${ambId})`);
+        
+        // Calibração QPU 2
+        calValues.push(`(NOW() - (${calDay} * INTERVAL '1 day'), NOW() - (${calDay} * INTERVAL '1 day') + INTERVAL '1 hour', 'Frequência e Pi-Pulso', 'v2.0.${100 - calDay}', 'Sucesso', 'Recalibração periódica automática dos qubits', 2, 2, ${ambId})`);
+      }
+      
+      // Calibração que falhou (dia 52)
+      const ambIdxFailed = 105 - 52;
+      const ambIdFailed = ambRows[ambIdxFailed].id_registro_ambiente;
+      calValues.push(`(NOW() - (52 * INTERVAL '1 day'), NOW() - (52 * INTERVAL '1 day') + INTERVAL '45 minutes', 'Alinhamento Ótico', 'v2.0.48', 'Falha', 'Perda de lock térmico no criostato', 1, 1, ${ambIdFailed})`);
+
+      const insertCalQuery = `
         INSERT INTO calibracao (data_hora_inicio, data_hora_fim, tipo_calibracao, versao_parametros, resultado, observacoes, id_pesquisador, id_qpu, id_registro_ambiente) 
-        VALUES 
-        (NOW() - INTERVAL '104 days', NOW() - INTERVAL '104 days' + INTERVAL '2 hours', 'Frequência de Qubit', 'v1.4.2', 'Sucesso', 'Frequências calibradas com erro < 100 kHz', 1, 1, ${ambRows[1].id_registro_ambiente}), 
-        (NOW() - INTERVAL '102 days', NOW() - INTERVAL '102 days' + INTERVAL '1 hour', 'Pulso de Pi', 'v1.4.3', 'Sucesso', 'Amplitude ajustada para 12.3 mV', 2, 1, ${ambRows[3].id_registro_ambiente}),
-        (NOW() - INTERVAL '101 days', NOW() - INTERVAL '101 days' + INTERVAL '30 minutes', 'Calibração de Leitura', 'v1.4.4', 'Falha', 'Ruído excessivo no amplificador criogênico HEMT', 1, 1, ${ambRows[4].id_registro_ambiente});
-      `);
+        VALUES ${calValues.join(',\n')}
+        RETURNING id_calibracao, id_qpu;
+      `;
+      const calResult = await client.query(insertCalQuery);
+      const calRows = calResult.rows;
 
       // Porta Quantica (9 portas)
       const gateInsertQuery = `
@@ -1314,21 +1334,29 @@ app.post('/api/db/init', async (req, res) => {
         const expId = expRows[1 + k].id_experimento;
         const qubits = qubitsByQpu[qpuId];
         
+        // Encontrar o dia da última calibração bem sucedida (o menor valor em calDays que é >= day)
+        const lastCalDay = calDays.find(d => d >= day) || 100;
+        const daysSinceCal = lastCalDay - day;
+        
         for (const q of qubits) {
           const qId = q.id_qubit;
           const idx = q.indice_qubit;
           
-          // Modelo físico de T1
+          // Modelo físico de T1 base
           const baseT1 = qpuId === 1 
             ? (85.0 + Math.sin(idx * 0.7) * 15.0) 
             : (140.0 + Math.cos(idx * 0.7) * 20.0);
           
-          // Degradação com a temperatura
+          // Degradação térmica
           const tempFactor = 1.0 / Math.pow(temp / 0.010, 1.2);
-          // Deriva temporal lenta (TLS)
-          const drift = Math.sin(day / 12.0 + idx) * 8.0;
           
-          let t1Val = baseT1 * tempFactor + drift + (Math.random() - 0.5) * 3.0;
+          // Degradação progressiva desde a última calibração (decaimento de 1.8% ao dia, queda máxima de 30%)
+          const degradationFactor = Math.max(0.70, 1.0 - daysSinceCal * 0.018);
+          
+          // Pequena flutuação aleatória diária (TLS)
+          const noiseT1 = (Math.random() - 0.5) * 1.5;
+          
+          let t1Val = baseT1 * tempFactor * degradationFactor + noiseT1;
           t1Val = Math.max(5.0, t1Val);
           
           // Modelo físico de taxa de erro de leitura
@@ -1338,7 +1366,10 @@ app.post('/api/db/init', async (req, res) => {
             
           const tempErrFactor = Math.pow(temp / 0.010, 2.5);
           
-          let errVal = baseErr * tempErrFactor + (Math.random() - 0.5) * 0.0002;
+          // A taxa de erro aumenta progressivamente à medida que se distancia da última calibração (2.5% ao dia)
+          const errorIncreaseFactor = 1.0 + daysSinceCal * 0.025;
+          
+          let errVal = baseErr * tempErrFactor * errorIncreaseFactor + (Math.random() - 0.5) * 0.0001;
           errVal = Math.max(0.0001, Math.min(0.25, errVal));
           
           qubitValues.push(`(${expId}, ${qId}, 'T1', ${t1Val.toFixed(4)}, 'μs', NOW() - (${day} * INTERVAL '1 day'), 'Decaimento Livre')`);
@@ -1359,6 +1390,10 @@ app.post('/api/db/init', async (req, res) => {
         const { day, qpuId, temp } = dailyExpMap[k];
         const expId = expRows[1 + k].id_experimento;
         
+        // Encontrar o dia da última calibração bem sucedida
+        const lastCalDay = calDays.find(d => d >= day) || 100;
+        const daysSinceCal = lastCalDay - day;
+        
         for (const gate of gatesRows) {
           const isTwoQubit = (gate.numero_qubits_alvo === 2);
           
@@ -1373,14 +1408,17 @@ app.post('/api/db/init', async (req, res) => {
               : (0.9996 - (gate.id_porta % 5) * 0.0002);
           }
           
-          // Degradação com a temperatura
-          const lossCoeff = isTwoQubit ? 0.012 : 0.002;
+          // Degradação com a temperatura (reduzida para fidelidades mais realistas)
+          const lossCoeff = isTwoQubit ? 0.003 : 0.0005;
           const tempLoss = lossCoeff * (Math.pow(temp / 0.010, 1.8) - 1.0);
           
-          // Ruído diário pequeno
-          const noise = (Math.random() - 0.5) * 0.0004;
+          // Degradação progressiva da fidelidade da porta conforme o tempo passa (0.008% ao dia para 1Q, 0.05% ao dia para 2Q)
+          const gateDegradation = daysSinceCal * (isTwoQubit ? 0.0005 : 0.00008);
           
-          let fidelity = baseFidelity - tempLoss + noise;
+          // Ruído diário pequeno
+          const noise = (Math.random() - 0.5) * 0.0002;
+          
+          let fidelity = baseFidelity - tempLoss - gateDegradation + noise;
           fidelity = Math.max(0.75, Math.min(0.9999, fidelity));
           
           portaValues.push(`(${expId}, ${gate.id_porta}, 'Fidelidade', ${fidelity.toFixed(6)}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Randomized Benchmarking')`);
@@ -1446,9 +1484,29 @@ app.post('/api/db/init', async (req, res) => {
         (9, 6); -- SWAP no qubit 6
       `);
 
-      await client.query("INSERT INTO utilizacalibracao (id_calibracao, id_sequencia) VALUES (1, 2);");
+      // Popular tabelas relacionais de calibração
+      const abrangeValues = [];
+      const utilizacalValues = [];
+      for (const cal of calRows) {
+        const calId = cal.id_calibracao;
+        const qpuId = cal.id_qpu;
+        const qubits = qubitsByQpu[qpuId];
+        
+        if (qubits && qubits.length >= 3) {
+          abrangeValues.push(`(${calId}, ${qubits[0].id_qubit}, 'Frequência Rabi', 5.250000, 5.248000)`);
+          abrangeValues.push(`(${calId}, ${qubits[1].id_qubit}, 'Amplitude Pi', 0.480000, 0.475000)`);
+          abrangeValues.push(`(${calId}, ${qubits[2].id_qubit}, 'Fase DRAG', 90.000000, 89.500000)`);
+        }
+        utilizacalValues.push(`(${calId}, 2)`);
+      }
+      
+      if (abrangeValues.length > 0) {
+        await client.query(`INSERT INTO abrange (id_calibracao, id_qubit, parametro_ajustado, valor_antes, valor_depois) VALUES ${abrangeValues.join(',\n')};`);
+      }
+      if (utilizacalValues.length > 0) {
+        await client.query(`INSERT INTO utilizacalibracao (id_calibracao, id_sequencia) VALUES ${utilizacalValues.join(',\n')};`);
+      }
       await client.query("INSERT INTO utilizaexperimento (id_experimento, id_sequencia) VALUES (1, 1);");
-      await client.query("INSERT INTO abrange (id_calibracao, id_qubit, parametro_ajustado, valor_antes, valor_depois) VALUES (1, 1, 'Frequência Rabi', 5.250, 5.248);");
     }
 
     await client.query('COMMIT');
