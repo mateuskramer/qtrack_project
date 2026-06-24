@@ -1200,49 +1200,149 @@ app.post('/api/db/init', async (req, res) => {
       // Pesquisadores
       await client.query("INSERT INTO pesquisador (nome, email, instituicao, area_atuacao) VALUES ('Dr. Alice Smith', 'alice@ufsc.br', 'UFSC', 'Controle Quântico'), ('Bob Jones', 'bob@ufsc.br', 'UFSC', 'Mitigação de Erros');");
 
-      await client.query("INSERT INTO registroambiente (data_hora_registro, temperatura, pressao, umidade, vibracao, campo_magnetico, observacoes) VALUES (NOW() - INTERVAL '4 days', 0.0110, 0.85, 30.5, 0.04, 0.12, 'Estável'), (NOW() - INTERVAL '3 days', 0.0105, 0.82, 31.0, 0.03, 0.11, 'Flutuação pequena'), (NOW() - INTERVAL '2 days', 0.0120, 0.90, 32.2, 0.06, 0.15, 'Porta aberta rapidamente'), (NOW() - INTERVAL '1 day', 0.0100, 0.80, 29.8, 0.02, 0.10, 'Excelente isolamento'), (NOW(), 0.0102, 0.81, 30.1, 0.03, 0.11, 'Condição nominal');");
-      const expValues = [];
-      // Experimento 1 (Fidelidade original): 203 dias atrás
-      expValues.push("('Fidelidade CNOT', 'Medir fidelidade de porta de dois qubits', NOW() - INTERVAL '203 days', NOW() - INTERVAL '203 days' + INTERVAL '1 hour', 'Concluído', 'Fidelidade aceitável', 1, 1, 2)");
-      
-      // Experimentos 2 a 202
-      for (let day = 200; day >= 0; day--) {
-        const ambId = (day % 5) + 1;
-        expValues.push(`('Caracterização Diária T1/Portas', 'Medição diária automática de telemetria e calibração', NOW() - (${day} * INTERVAL '1 day'), NOW() - (${day} * INTERVAL '1 day') + INTERVAL '30 minutes', 'Concluído', 'Rotina automatizada', 2, 1, ${ambId})`);
+      // Gerar registros ambientais para os últimos 105 dias
+      const ambValues = [];
+      for (let day = 105; day >= 0; day--) {
+        // Temperatura base em torno de 10 mK (0.0100 Kelvin).
+        // Introduzimos oscilações periódicas e picos térmicos em dias específicos
+        let temp = 0.010 + (Math.sin(day / 5.0) * 0.001) + Math.random() * 0.001;
+        
+        // Picos de calor (desafios ambientais)
+        if (day === 70 || day === 71) {
+          temp = 0.038 + Math.random() * 0.005; // Spike térmico de ~40mK (catastrófico)
+        } else if (day === 30) {
+          temp = 0.022 + Math.random() * 0.003; // Flutuação média
+        }
+        
+        const pressao = (0.8 + Math.random() * 0.1).toFixed(4);
+        const umidade = (30.0 + Math.sin(day) * 2.0).toFixed(4);
+        // Vibração correlacionada com a temperatura (sistemas mecânicos de bombeamento em estresse)
+        const vibracao = (temp > 0.030) 
+          ? (0.12 + Math.random() * 0.04).toFixed(4) 
+          : (0.02 + Math.random() * 0.01).toFixed(4);
+        const campo_magnetico = (0.10 + Math.random() * 0.02).toFixed(4);
+        
+        let obs = 'Estável';
+        if (temp > 0.030) obs = 'Pico de temperatura - Anomalia Térmica';
+        else if (temp > 0.020) obs = 'Pequena flutuação de temperatura';
+        
+        ambValues.push(`(NOW() - (${day} * INTERVAL '1 day'), ${temp.toFixed(6)}, ${pressao}, ${umidade}, ${vibracao}, ${campo_magnetico}, '${obs}')`);
       }
       
-      // Experimento 203 (Caracterização Óptica)
-      expValues.push("('Caracterização Óptica', 'Medir fontes de fótons únicos', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day' + INTERVAL '2 hours', 'Concluído', 'Taxa de coincidência excelente', 1, 2, 4)");
+      const ambResult = await client.query(`
+        INSERT INTO registroambiente (data_hora_registro, temperatura, pressao, umidade, vibracao, campo_magnetico, observacoes)
+        VALUES ${ambValues.join(',\n')}
+        RETURNING id_registro_ambiente, temperatura;
+      `);
       
-      // Experimento 204 (Simulação VQE)
-      expValues.push("('Simulação VQE', 'Rodar algoritmo VQE para molécula de H2', NOW(), NULL, 'Planejado', 'Executando em background', 2, 1, 5)");
+      const ambRows = ambResult.rows;
+
+      const expValues = [];
+      // Experimento 1 (Fidelidade original): 103 dias atrás na QPU 1
+      const ambId103 = ambRows[2].id_registro_ambiente; // 105 - 103 = 2
+      expValues.push(`('Fidelidade CNOT', 'Medir fidelidade de porta de dois qubits', NOW() - INTERVAL '103 days', NOW() - INTERVAL '103 days' + INTERVAL '1 hour', 'Concluído', 'Fidelidade aceitável', 1, 1, ${ambId103})`);
       
-      const insertExpQuery = `INSERT INTO experimento (nome, objetivo, data_hora_inicio, data_hora_fim, status_execucao, observacoes, id_pesquisador, id_qpu, id_registro_ambiente) VALUES ${expValues.join(',\n')};`;
-      await client.query(insertExpQuery);
+      // Criar experimentos diários para QPU 1 e QPU 2 nos últimos 100 dias (202 experimentos)
+      const dailyExpMap = [];
+      for (let day = 100; day >= 0; day--) {
+        const ambIdx = 105 - day;
+        const ambRow = ambRows[ambIdx];
+        const ambId = ambRow.id_registro_ambiente;
+        
+        // Experimento na QPU 1 (Triton-20)
+        expValues.push(`('Caracterização Triton-20', 'Rotina diária de calibração e telemetria', NOW() - (${day} * INTERVAL '1 day'), NOW() - (${day} * INTERVAL '1 day') + INTERVAL '30 minutes', 'Concluído', 'Rotina automatizada', 2, 1, ${ambId})`);
+        dailyExpMap.push({ day, qpuId: 1, temp: parseFloat(ambRow.temperatura) });
+        
+        // Experimento na QPU 2 (Borealis-20)
+        expValues.push(`('Caracterização Borealis-20', 'Rotina diária de calibração e telemetria', NOW() - (${day} * INTERVAL '1 day') + INTERVAL '10 minutes', NOW() - (${day} * INTERVAL '1 day') + INTERVAL '40 minutes', 'Concluído', 'Rotina automatizada', 2, 2, ${ambId})`);
+        dailyExpMap.push({ day, qpuId: 2, temp: parseFloat(ambRow.temperatura) });
+      }
+      
+      // Experimento extra 203 (Caracterização Óptica) na QPU 2: 1 dia atrás
+      const ambId1 = ambRows[104].id_registro_ambiente; // 105 - 1 = 104
+      expValues.push(`('Caracterização Óptica', 'Medir fontes de fótons únicos', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day' + INTERVAL '2 hours', 'Concluído', 'Taxa de coincidência excelente', 1, 2, ${ambId1})`);
+      
+      // Experimento extra 204 (Simulação VQE) na QPU 1: planejado para hoje
+      const ambId0 = ambRows[105].id_registro_ambiente; // 105 - 0 = 105
+      expValues.push(`('Simulação VQE', 'Rodar algoritmo VQE para molécula de H2', NOW(), NULL, 'Planejado', 'Executando em background', 2, 1, ${ambId0})`);
+      
+      const insertExpQuery = `
+        INSERT INTO experimento (nome, objetivo, data_hora_inicio, data_hora_fim, status_execucao, observacoes, id_pesquisador, id_qpu, id_registro_ambiente)
+        VALUES ${expValues.join(',\n')}
+        RETURNING id_experimento, id_qpu;
+      `;
+      const expResult = await client.query(insertExpQuery);
+      const expRows = expResult.rows;
 
       // Calibrações
       await client.query(`
         INSERT INTO calibracao (data_hora_inicio, data_hora_fim, tipo_calibracao, versao_parametros, resultado, observacoes, id_pesquisador, id_qpu, id_registro_ambiente) 
         VALUES 
-        (NOW() - INTERVAL '204 days', NOW() - INTERVAL '204 days' + INTERVAL '2 hours', 'Frequência de Qubit', 'v1.4.2', 'Sucesso', 'Frequências calibradas com erro < 100 kHz', 1, 1, 1), 
-        (NOW() - INTERVAL '202 days', NOW() - INTERVAL '202 days' + INTERVAL '1 hour', 'Pulso de Pi', 'v1.4.3', 'Sucesso', 'Amplitude ajustada para 12.3 mV', 2, 1, 3),
-        (NOW() - INTERVAL '201 days', NOW() - INTERVAL '201 days' + INTERVAL '30 minutes', 'Calibração de Leitura', 'v1.4.4', 'Falha', 'Ruído excessivo no amplificador criogênico HEMT', 1, 1, 4);
+        (NOW() - INTERVAL '104 days', NOW() - INTERVAL '104 days' + INTERVAL '2 hours', 'Frequência de Qubit', 'v1.4.2', 'Sucesso', 'Frequências calibradas com erro < 100 kHz', 1, 1, ${ambRows[1].id_registro_ambiente}), 
+        (NOW() - INTERVAL '102 days', NOW() - INTERVAL '102 days' + INTERVAL '1 hour', 'Pulso de Pi', 'v1.4.3', 'Sucesso', 'Amplitude ajustada para 12.3 mV', 2, 1, ${ambRows[3].id_registro_ambiente}),
+        (NOW() - INTERVAL '101 days', NOW() - INTERVAL '101 days' + INTERVAL '30 minutes', 'Calibração de Leitura', 'v1.4.4', 'Falha', 'Ruído excessivo no amplificador criogênico HEMT', 1, 1, ${ambRows[4].id_registro_ambiente});
       `);
 
-      // Porta Quantica
-      await client.query("INSERT INTO portaquantica (nome_porta, categoria, numero_qubits_alvo, descricao) VALUES ('Hadamard', '1-Qubit', 1, 'Cria superposição de estados'), ('Pauli-X', '1-Qubit', 1, 'Porta NOT quântica'), ('CNOT', '2-Qubits', 2, 'Porta lógica controlada-NOT');");
+      // Porta Quantica (9 portas)
+      const gateInsertQuery = `
+        INSERT INTO portaquantica (nome_porta, categoria, numero_qubits_alvo, descricao)
+        VALUES 
+        ('Hadamard', '1-Qubit', 1, 'Cria superposição de estados (eixo X + Z)'),
+        ('Pauli-X', '1-Qubit', 1, 'Porta NOT quântica (inversão de qubit)'),
+        ('Pauli-Y', '1-Qubit', 1, 'Rotação de pi radianos em torno do eixo Y'),
+        ('Pauli-Z', '1-Qubit', 1, 'Inversão de fase (rotação de pi radianos em torno do eixo Z)'),
+        ('S (Fase)', '1-Qubit', 1, 'Rotação de pi/2 radianos em torno do eixo Z (raiz quadrada de Z)'),
+        ('T', '1-Qubit', 1, 'Rotação de pi/4 radianos em torno do eixo Z (raiz octogonal de Z)'),
+        ('CNOT', '2-Qubits', 2, 'Porta lógica controlada-NOT (emaranhamento)'),
+        ('CZ', '2-Qubits', 2, 'Porta controlada-Z (inversão de fase condicionada)'),
+        ('SWAP', '2-Qubits', 2, 'Troca o estado quântico de dois qubits')
+        RETURNING id_porta, nome_porta, numero_qubits_alvo;
+      `;
+      const gatesResult = await client.query(gateInsertQuery);
+      const gatesRows = gatesResult.rows;
 
       // MedeQubit (T1 e TaxaErro) dinâmico para todos os qubits gerados, associando ao experimento de cada dia
-      const allQubits = await client.query('SELECT id_qubit FROM qubit;');
+      const allQubits = await client.query('SELECT id_qubit, indice_qubit, id_qpu FROM qubit;');
+      const qubitsByQpu = {
+        1: allQubits.rows.filter(q => q.id_qpu === 1),
+        2: allQubits.rows.filter(q => q.id_qpu === 2)
+      };
+
       const qubitValues = [];
-      for (let day = 200; day >= 0; day--) {
-        const expId = 202 - day; // Mapeia dia 200 -> id_exp 2, dia 199 -> id_exp 3, ..., dia 0 -> id_exp 202
-        for (const row of allQubits.rows) {
-          const qId = row.id_qubit;
-          const t1Val = 60.0 + Math.sin(qId + day) * 15.0;
-          const errVal = 0.01 + Math.cos(qId - day) * 0.005;
-          qubitValues.push(`(${expId}, ${qId}, 'T1', ${t1Val}, 'μs', NOW() - (${day} * INTERVAL '1 day'), 'Decaimento Livre')`);
-          qubitValues.push(`(${expId}, ${qId}, 'TaxaErro', ${errVal}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Tomografia de Leitura')`);
+      for (let k = 0; k < dailyExpMap.length; k++) {
+        const { day, qpuId, temp } = dailyExpMap[k];
+        const expId = expRows[1 + k].id_experimento;
+        const qubits = qubitsByQpu[qpuId];
+        
+        for (const q of qubits) {
+          const qId = q.id_qubit;
+          const idx = q.indice_qubit;
+          
+          // Modelo físico de T1
+          const baseT1 = qpuId === 1 
+            ? (85.0 + Math.sin(idx * 0.7) * 15.0) 
+            : (140.0 + Math.cos(idx * 0.7) * 20.0);
+          
+          // Degradação com a temperatura
+          const tempFactor = 1.0 / Math.pow(temp / 0.010, 1.2);
+          // Deriva temporal lenta (TLS)
+          const drift = Math.sin(day / 12.0 + idx) * 8.0;
+          
+          let t1Val = baseT1 * tempFactor + drift + (Math.random() - 0.5) * 3.0;
+          t1Val = Math.max(5.0, t1Val);
+          
+          // Modelo físico de taxa de erro de leitura
+          const baseErr = qpuId === 1
+            ? (0.0015 + (idx % 4) * 0.0005) 
+            : (0.0010 + (idx % 3) * 0.0004);
+            
+          const tempErrFactor = Math.pow(temp / 0.010, 2.5);
+          
+          let errVal = baseErr * tempErrFactor + (Math.random() - 0.5) * 0.0002;
+          errVal = Math.max(0.0001, Math.min(0.25, errVal));
+          
+          qubitValues.push(`(${expId}, ${qId}, 'T1', ${t1Val.toFixed(4)}, 'μs', NOW() - (${day} * INTERVAL '1 day'), 'Decaimento Livre')`);
+          qubitValues.push(`(${expId}, ${qId}, 'TaxaErro', ${errVal.toFixed(6)}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Tomografia de Leitura')`);
         }
       }
       
@@ -1255,13 +1355,44 @@ app.post('/api/db/init', async (req, res) => {
 
       // MedePorta (Fidelidade) associando ao experimento de cada dia
       const portaValues = [];
-      for (let day = 200; day >= 0; day--) {
-        const expId = 202 - day; // Mapeia dia 200 -> id_exp 2, dia 199 -> id_exp 3, ..., dia 0 -> id_exp 202
-        const val1 = 0.992 + Math.sin(day) * 0.003;
-        const val2 = 0.975 + Math.cos(day) * 0.004;
-        portaValues.push(`(${expId}, 1, 'Fidelidade', ${val1}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Randomized Benchmarking')`);
-        portaValues.push(`(${expId}, 3, 'Fidelidade', ${val2}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Interleaved RB')`);
+      for (let k = 0; k < dailyExpMap.length; k++) {
+        const { day, qpuId, temp } = dailyExpMap[k];
+        const expId = expRows[1 + k].id_experimento;
+        
+        for (const gate of gatesRows) {
+          const isTwoQubit = (gate.numero_qubits_alvo === 2);
+          
+          let baseFidelity;
+          if (isTwoQubit) {
+            baseFidelity = qpuId === 1
+              ? (0.985 - (gate.id_porta % 3) * 0.004)
+              : (0.988 - (gate.id_porta % 3) * 0.003);
+          } else {
+            baseFidelity = qpuId === 1
+              ? (0.9994 - (gate.id_porta % 5) * 0.0003)
+              : (0.9996 - (gate.id_porta % 5) * 0.0002);
+          }
+          
+          // Degradação com a temperatura
+          const lossCoeff = isTwoQubit ? 0.012 : 0.002;
+          const tempLoss = lossCoeff * (Math.pow(temp / 0.010, 1.8) - 1.0);
+          
+          // Ruído diário pequeno
+          const noise = (Math.random() - 0.5) * 0.0004;
+          
+          let fidelity = baseFidelity - tempLoss + noise;
+          fidelity = Math.max(0.75, Math.min(0.9999, fidelity));
+          
+          portaValues.push(`(${expId}, ${gate.id_porta}, 'Fidelidade', ${fidelity.toFixed(6)}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Randomized Benchmarking')`);
+        }
       }
+      
+      // Inserir medição para o primeiro experimento de fidelidade CNOT (103 dias atrás)
+      portaValues.push(`(1, 7, 'Fidelidade', 0.981500, 'taxa', NOW() - INTERVAL '103 days', 'Randomized Benchmarking')`);
+      
+      // Inserir medição para o experimento de Caracterização Óptica (1 dia atrás)
+      const expId203 = expRows[203].id_experimento;
+      portaValues.push(`(${expId203}, 1, 'Fidelidade', 0.999500, 'taxa', NOW() - INTERVAL '1 day', 'Spectroscopy')`);
       
       for (let i = 0; i < portaValues.length; i += batchSize) {
         const batch = portaValues.slice(i, i + batchSize);
@@ -1270,14 +1401,51 @@ app.post('/api/db/init', async (req, res) => {
       }
 
       // Sequencias de Pulso
-      await client.query("INSERT INTO sequenciapulso (nome, finalidade, versao, descricao) VALUES ('Seq-RB-1Q', 'Fidelidade', 'v1.0.0', 'Sequência de Clifford para Randomized Benchmarking de 1 qubit'), ('Seq-Calib-Pi', 'Calibração', 'v2.1.0', 'Sequência de pulso de pi para calibração de amplitude');");
+      await client.query(`
+        INSERT INTO sequenciapulso (nome, finalidade, versao, descricao) 
+        VALUES 
+        ('Seq-RB-1Q', 'Fidelidade', 'v1.0.0', 'Sequência de Clifford para Randomized Benchmarking de 1 qubit'), 
+        ('Seq-Calib-Pi', 'Calibração', 'v2.1.0', 'Sequência de pulso de pi para calibração de amplitude'),
+        ('Seq-Echo-Z', 'Coerência', 'v1.1.2', 'Sequência de eco de spin com pulsos pi/2 e pi para desacoplamento dinâmico');
+      `);
 
       // Pulsos
-      await client.query("INSERT INTO pulso (ordem, tipo_pulso, amplitude, duracao, frequencia, fase, forma_onda, id_sequencia) VALUES (1, 'Gaussian', 0.50, 20.0, 5.12, 0.0, 'Gaussiana', 1), (2, 'DRAG', 0.48, 20.0, 5.12, 90.0, 'Formato DRAG', 1), (1, 'Rabi', 0.60, 40.0, 5.10, 0.0, 'Retangular', 2);");
+      await client.query(`
+        INSERT INTO pulso (ordem, tipo_pulso, amplitude, duracao, frequencia, fase, forma_onda, id_sequencia) 
+        VALUES 
+        (1, 'Gaussian', 0.50, 20.0, 5.12, 0.0, 'Gaussiana', 1), 
+        (2, 'DRAG', 0.48, 20.0, 5.12, 90.0, 'Formato DRAG', 1), 
+        (1, 'Rabi', 0.60, 40.0, 5.10, 0.0, 'Retangular', 2),
+        (1, 'X/2', 0.25, 10.0, 5.12, 0.0, 'Gaussiana', 3),
+        (2, 'Y', 0.50, 20.0, 5.12, 90.0, 'Gaussiana', 3),
+        (3, 'X/2', 0.25, 10.0, 5.12, 0.0, 'Gaussiana', 3);
+      `);
 
       // Relações N:M (Seed)
-      await client.query("INSERT INTO implementa (id_sequencia, id_porta) VALUES (1, 1), (2, 2);");
-      await client.query("INSERT INTO atuasobre (id_porta, id_qubit) VALUES (1, 1), (2, 2);");
+      await client.query(`
+        INSERT INTO implementa (id_sequencia, id_porta) 
+        VALUES 
+        (1, 1), -- Seq-RB-1Q implementa Hadamard
+        (2, 2), -- Seq-Calib-Pi implementa Pauli-X
+        (3, 4); -- Seq-Echo-Z implementa Pauli-Z
+      `);
+
+      await client.query(`
+        INSERT INTO atuasobre (id_porta, id_qubit) VALUES 
+        (1, 1), -- Hadamard no qubit 1
+        (2, 2), -- Pauli-X no qubit 2
+        (3, 3), -- Pauli-Y no qubit 3
+        (4, 4), -- Pauli-Z no qubit 4
+        (5, 5), -- S no qubit 5
+        (6, 6), -- T no qubit 6
+        (7, 1), -- CNOT no qubit 1
+        (7, 2), -- CNOT no qubit 2
+        (8, 3), -- CZ no qubit 3
+        (8, 4), -- CZ no qubit 4
+        (9, 5), -- SWAP no qubit 5
+        (9, 6); -- SWAP no qubit 6
+      `);
+
       await client.query("INSERT INTO utilizacalibracao (id_calibracao, id_sequencia) VALUES (1, 2);");
       await client.query("INSERT INTO utilizaexperimento (id_experimento, id_sequencia) VALUES (1, 1);");
       await client.query("INSERT INTO abrange (id_calibracao, id_qubit, parametro_ajustado, valor_antes, valor_depois) VALUES (1, 1, 'Frequência Rabi', 5.250, 5.248);");
