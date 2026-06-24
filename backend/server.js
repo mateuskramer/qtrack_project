@@ -1497,7 +1497,27 @@ app.post('/api/db/init', async (req, res) => {
       if (utilizacalValues.length > 0) {
         await client.query(`INSERT INTO utilizacalibracao (id_calibracao, id_sequencia) VALUES ${utilizacalValues.join(',\n')};`);
       }
-      await client.query("INSERT INTO utilizaexperimento (id_experimento, id_sequencia) VALUES (1, 1);");
+      // Popular utilizaexperimento (associa cada experimento com uma sequência de pulsos)
+      const utilizaexpValues = [];
+      // Exp ID 1 (Fidelidade CNOT) -> Seq-RB-1Q (ID 1)
+      utilizaexpValues.push(`(1, 1)`);
+      
+      for (let k = 0; k < dailyExpMap.length; k++) {
+        const expId = expRows[1 + k].id_experimento;
+        // Alternamos entre a Seq-RB-1Q (ID 1) e Seq-Echo-Z (ID 3)
+        const seqId = (k % 2 === 0) ? 1 : 3;
+        utilizaexpValues.push(`(${expId}, ${seqId})`);
+      }
+      
+      // Exp ID 203 (Caracterização Óptica) -> Seq-RB-1Q (ID 1)
+      utilizaexpValues.push(`(${expRows[203].id_experimento}, 1)`);
+      
+      // Exp ID 204 (Simulação VQE) -> Seq-Echo-Z (ID 3)
+      utilizaexpValues.push(`(${expRows[204].id_experimento}, 3)`);
+
+      if (utilizaexpValues.length > 0) {
+        await client.query(`INSERT INTO utilizaexperimento (id_experimento, id_sequencia) VALUES ${utilizaexpValues.join(',\n')};`);
+      }
     }
 
     await client.query('COMMIT');
