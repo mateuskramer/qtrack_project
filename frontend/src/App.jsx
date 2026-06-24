@@ -888,7 +888,7 @@ function App() {
               <div>
                 <h3 style={{ color: 'var(--text-main)' }}>🚀 Criar Tabelas e Carregar Dados</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '5px', marginBottom: '15px', lineHeight: '1.4' }}>
-                  Cria todas as 10 tabelas do banco de dados (Criostato, QPU, Qubit, Pesquisador, Experimento, etc.) e insere os dados iniciais pré-definidos (incluindo 31 qubits na QPU Triton-31, experimentos e medições de calibração).
+                  Cria todas as 10 tabelas do banco de dados (Criostato, QPU, Qubit, Pesquisador, Experimento, etc.) e insere os dados iniciais pré-definidos (incluindo 20 qubits na QPU Triton-20, experimentos e medições de calibração).
                 </p>
                 <button 
                   onClick={async () => {
