@@ -133,6 +133,8 @@ function App() {
 
   // Estado para filtrar a QPU visualizada no Relatório 1
   const [qpuFiltrada, setQpuFiltrada] = useState('todas');
+  const [detalhesModalOpen, setDetalhesModalOpen] = useState(false);
+  const [detalhesDados, setDetalhesDados] = useState(null);
 
   // ============== ESTADOS DO DASHBOARD DINÂMICO ==============
   const [qpuSelecionada, setQpuSelecionada] = useState('')
@@ -323,6 +325,38 @@ function App() {
     } catch (err) { console.error(err); }
   }
 
+  const handleVerDetalhesExperimento = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/experimentos/${id}/detalhes`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetalhesDados({ type: 'experimento', ...data });
+        setDetalhesModalOpen(true);
+      } else {
+        alert("Erro ao buscar detalhes do experimento");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao conectar no servidor para buscar detalhes");
+    }
+  }
+
+  const handleVerDetalhesCalibracao = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/calibracoes/${id}/detalhes`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetalhesDados({ type: 'calibracao', ...data });
+        setDetalhesModalOpen(true);
+      } else {
+        alert("Erro ao buscar detalhes da calibração");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao conectar no servidor para buscar detalhes");
+    }
+  }
+
   // ============== REQUISITOS DE BUSCA (EFFECTS) ==============
   useEffect(() => {
     fetch('http://localhost:8000/api/qpus')
@@ -397,7 +431,7 @@ function App() {
             </div>
 
             <div className="bottom">
-              <div className="panel" style={{ overflowX: 'auto' }}><h3 style={{ marginBottom: '15px' }}>Experimentos Recentes</h3><ExperimentTable experimentos={dadosDashQubits.experimentos} /></div>
+              <div className="panel" style={{ overflowX: 'auto' }}><h3 style={{ marginBottom: '15px' }}>Experimentos Recentes</h3><ExperimentTable experimentos={dadosDashQubits.experimentos} onVerDetalhes={handleVerDetalhesExperimento} /></div>
               <div className="panel">
                 <h3>Alertas Ativos</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
@@ -811,6 +845,7 @@ function App() {
                     <tr key={e.id_experimento} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '12px' }}>{e.id_experimento}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>{e.nome}</td><td style={{ padding: '12px' }}>{e.qpu_nome}</td><td style={{ padding: '12px' }}>{e.pesquisador_nome}</td><td style={{ padding: '12px' }}>{e.status_execucao}</td>
                       <td>
+                        <button onClick={() => handleVerDetalhesExperimento(e.id_experimento)} style={{ marginRight: '8px', background: 'transparent', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Detalhes</button>
                         <button onClick={() => { setIdExpEditando(e.id_experimento); setNomeExp(e.nome); setObjetivoExp(e.objetivo); setStatusExp(e.status_execucao); setObsExp(e.observacoes || ''); setIdPesqExp(e.id_pesquisador || ''); setIdQpuExp(e.id_qpu || ''); setIdAmbExp(e.id_registro_ambiente || ''); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
                         <button onClick={() => handleExcluirExperimento(e.id_experimento)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
                       </td>
@@ -864,6 +899,7 @@ function App() {
                     <tr key={c.id_calibracao} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '12px' }}>{c.id_calibracao}</td><td style={{ padding: '12px', fontWeight: 'bold' }}>{c.tipo_calibracao}</td><td style={{ padding: '12px' }}>{c.qpu_nome}</td><td style={{ padding: '12px' }}>{c.versao_parametros}</td><td style={{ padding: '12px' }}>{c.resultado}</td>
                       <td>
+                        <button onClick={() => handleVerDetalhesCalibracao(c.id_calibracao)} style={{ marginRight: '8px', background: 'transparent', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Detalhes</button>
                         <button onClick={() => { setIdCalEditando(c.id_calibracao); setInicioCal(c.data_hora_inicio || ''); setFimCal(c.data_hora_fim || ''); setTipoCal(c.tipo_calibracao); setVersaoCal(c.versao_parametros); setResultadoCal(c.resultado); setObsCal(c.observacoes || ''); setIdPesqCal(c.id_pesquisador || ''); setIdQpuCal(c.id_qpu || ''); setIdAmbCal(c.id_registro_ambiente || ''); }} style={{ marginRight: '8px', background: 'transparent', border: '1px solid #eab308', color: '#eab308', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
                         <button onClick={() => handleExcluirCalibracao(c.id_calibracao)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
                       </td>
@@ -975,6 +1011,199 @@ function App() {
           />
         )}
       </main>
+
+      {/* ================= MODAL: DETALHAR ITEM ================= */}
+      {detalhesModalOpen && detalhesDados && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            backgroundColor: '#1b1b2f',
+            border: '1px solid #3c3c5c',
+            borderRadius: '12px',
+            padding: '25px',
+            maxWidth: '650px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            color: 'white',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #3c3c5c', paddingBottom: '15px', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--accent-purple)' }}>
+                Detalhes {detalhesDados.type === 'experimento' ? 'do Experimento' : 'da Calibração'} #{detalhesDados.type === 'experimento' ? detalhesDados.experimento.id_experimento : detalhesDados.calibracao.id_calibracao}
+              </h2>
+              <button 
+                onClick={() => { setDetalhesModalOpen(false); setDetalhesDados(null); }}
+                style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '1.5rem', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Main Info */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Nome / Tipo</span>
+                <div style={{ fontWeight: 'bold', fontSize: '0.95rem', marginTop: '3px' }}>
+                  {detalhesDados.type === 'experimento' ? detalhesDados.experimento.nome : detalhesDados.calibracao.tipo_calibracao}
+                </div>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>QPU Alvo</span>
+                <div style={{ fontWeight: 'bold', fontSize: '0.95rem', marginTop: '3px' }}>
+                  {detalhesDados.type === 'experimento' ? detalhesDados.experimento.qpu_nome : detalhesDados.calibracao.qpu_nome}
+                </div>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Pesquisador</span>
+                <div style={{ fontWeight: 'bold', fontSize: '0.95rem', marginTop: '3px' }}>
+                  {detalhesDados.type === 'experimento' ? detalhesDados.experimento.pesquisador_nome : detalhesDados.calibracao.pesquisador_nome}
+                </div>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Status / Resultado</span>
+                <div style={{ marginTop: '3px' }}>
+                  <span style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    background: detalhesDados.type === 'experimento'
+                      ? (detalhesDados.experimento.status_execucao === 'Concluído' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)')
+                      : (detalhesDados.calibracao.resultado === 'Sucesso' ? 'rgba(34, 197, 94, 0.1)' : detalhesDados.calibracao.resultado === 'Falha Crítica' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)'),
+                    color: detalhesDados.type === 'experimento'
+                      ? (detalhesDados.experimento.status_execucao === 'Concluído' ? '#22c55e' : '#3b82f6')
+                      : (detalhesDados.calibracao.resultado === 'Sucesso' ? '#22c55e' : detalhesDados.calibracao.resultado === 'Falha Crítica' ? '#ef4444' : '#f59e0b')
+                  }}>
+                    {detalhesDados.type === 'experimento' ? detalhesDados.experimento.status_execucao : detalhesDados.calibracao.resultado}
+                  </span>
+                </div>
+              </div>
+              {detalhesDados.type === 'experimento' && (
+                <div style={{ gridColumn: 'span 2' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Objetivo</span>
+                  <div style={{ fontSize: '0.9rem', marginTop: '3px', color: '#e2e8f0' }}>{detalhesDados.experimento.objetivo || 'Sem objetivo cadastrado'}</div>
+                </div>
+              )}
+              <div style={{ gridColumn: 'span 2' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Observações</span>
+                <div style={{ fontSize: '0.9rem', marginTop: '3px', color: '#e2e8f0' }}>
+                  {detalhesDados.type === 'experimento' ? (detalhesDados.experimento.observacoes || 'Sem observações') : (detalhesDados.calibracao.observacoes || 'Sem observações')}
+                </div>
+              </div>
+            </div>
+
+            {/* Conditions (Ambient) */}
+            <h3 style={{ fontSize: '1.05rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px', marginBottom: '12px', color: 'var(--accent-purple)' }}>
+              Condições Ambientais do Criostato (No Momento do Registro)
+            </h3>
+            {((detalhesDados.type === 'experimento' && detalhesDados.experimento.id_registro_ambiente) || 
+              (detalhesDados.type === 'calibracao' && detalhesDados.calibracao.id_registro_ambiente)) ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '25px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Temperatura</span>
+                  <div style={{ fontWeight: 'bold', marginTop: '3px', color: '#e2e8f0' }}>
+                    {detalhesDados.type === 'experimento' 
+                      ? (detalhesDados.experimento.temperatura !== null ? `${Number(detalhesDados.experimento.temperatura).toFixed(4)} K` : '---')
+                      : (detalhesDados.calibracao.temperatura !== null ? `${Number(detalhesDados.calibracao.temperatura).toFixed(4)} K` : '---')}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Pressão</span>
+                  <div style={{ fontWeight: 'bold', marginTop: '3px', color: '#e2e8f0' }}>
+                    {detalhesDados.type === 'experimento'
+                      ? (detalhesDados.experimento.pressao !== null ? `${Number(detalhesDados.experimento.pressao).toFixed(4)} mTorr` : '---')
+                      : (detalhesDados.calibracao.pressao !== null ? `${Number(detalhesDados.calibracao.pressao).toFixed(4)} mTorr` : '---')}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Umidade</span>
+                  <div style={{ fontWeight: 'bold', marginTop: '3px', color: '#e2e8f0' }}>
+                    {detalhesDados.type === 'experimento'
+                      ? (detalhesDados.experimento.umidade !== null ? `${Number(detalhesDados.experimento.umidade).toFixed(2)}%` : '---')
+                      : (detalhesDados.calibracao.umidade !== null ? `${Number(detalhesDados.calibracao.umidade).toFixed(2)}%` : '---')}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Vibração</span>
+                  <div style={{ fontWeight: 'bold', marginTop: '3px', color: '#e2e8f0' }}>
+                    {detalhesDados.type === 'experimento'
+                      ? (detalhesDados.experimento.vibracao !== null ? `${Number(detalhesDados.experimento.vibracao).toFixed(4)} µm/s` : '---')
+                      : (detalhesDados.calibracao.vibracao !== null ? `${Number(detalhesDados.calibracao.vibracao).toFixed(4)} µm/s` : '---')}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Campo Magnético</span>
+                  <div style={{ fontWeight: 'bold', marginTop: '3px', color: '#e2e8f0' }}>
+                    {detalhesDados.type === 'experimento'
+                      ? (detalhesDados.experimento.campo_magnetico !== null ? `${Number(detalhesDados.experimento.campo_magnetico).toFixed(4)} mT` : '---')
+                      : (detalhesDados.calibracao.campo_magnetico !== null ? `${Number(detalhesDados.calibracao.campo_magnetico).toFixed(4)} mT` : '---')}
+                  </div>
+                </div>
+                <div style={{ gridColumn: 'span 3' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Obs. do Log Ambiental</span>
+                  <div style={{ fontSize: '0.85rem', marginTop: '3px', color: '#cbd5e1' }}>
+                    {detalhesDados.type === 'experimento' ? (detalhesDados.experimento.ambiente_observacoes || 'Nenhuma observação registrada') : (detalhesDados.calibracao.ambiente_observacoes || 'Nenhuma observação registrada')}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem', marginBottom: '25px', backgroundColor: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                Nenhum registro de ambiente vinculado.
+              </div>
+            )}
+
+            {/* Pulse Sequences */}
+            <h3 style={{ fontSize: '1.05rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px', marginBottom: '12px', color: 'var(--accent-purple)' }}>
+              Sequências de Pulso Utilizadas
+            </h3>
+            {detalhesDados.sequencias && detalhesDados.sequencias.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {detalhesDados.sequencias.map(seq => (
+                  <div key={seq.id_sequencia} style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '12px 15px', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 'bold', color: 'var(--accent-purple)' }}>{seq.nome}</span>
+                      <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)', color: '#a78bfa' }}>
+                        Versão: {seq.versao}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      <strong>Finalidade:</strong> {seq.finalidade}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', marginTop: '6px', color: '#cbd5e1' }}>{seq.descricao}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem', backgroundColor: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                Nenhuma sequência de pulso vinculada a este registro.
+              </div>
+            )}
+
+            {/* Footer Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '25px', borderTop: '1px solid #3c3c5c', paddingTop: '15px' }}>
+              <button 
+                onClick={() => { setDetalhesModalOpen(false); setDetalhesDados(null); }}
+                style={{ padding: '8px 20px', background: 'var(--accent-purple)', border: 'none', borderRadius: '6px', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

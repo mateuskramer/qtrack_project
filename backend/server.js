@@ -279,6 +279,41 @@ app.delete('/api/experimentos/:id', async (req, res) => {
   }
 });
 
+app.get('/api/experimentos/:id/detalhes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const expQuery = `
+      SELECT e.*, p.nome as pesquisador_nome, q.nome as qpu_nome,
+             ra.temperatura, ra.pressao, ra.umidade, ra.vibracao, ra.campo_magnetico, ra.observacoes as ambiente_observacoes
+      FROM experimento e
+      LEFT JOIN pesquisador p ON e.id_pesquisador = p.id_pesquisador
+      LEFT JOIN QPU q ON e.id_qpu = q.id_qpu
+      LEFT JOIN registroambiente ra ON e.id_registro_ambiente = ra.id_registro_ambiente
+      WHERE e.id_experimento = $1;
+    `;
+    const expResult = await pool.query(expQuery, [id]);
+    if (expResult.rows.length === 0) {
+      return res.status(404).send('Experimento não encontrado');
+    }
+    const experimento = expResult.rows[0];
+
+    const seqQuery = `
+      SELECT sp.*
+      FROM sequenciapulso sp
+      JOIN utilizaexperimento ue ON sp.id_sequencia = ue.id_sequencia
+      WHERE ue.id_experimento = $1;
+    `;
+    const seqResult = await pool.query(seqQuery, [id]);
+    
+    res.json({
+      experimento,
+      sequencias: seqResult.rows
+    });
+  } catch (err) {
+    console.error(err.message); res.status(500).send('Erro ao buscar detalhes do experimento');
+  }
+});
+
 // ================= 6. CRUD DE CALIBRAÇÕES =================
 app.get('/api/calibracoes', async (req, res) => {
   try {
@@ -333,6 +368,41 @@ app.delete('/api/calibracoes/:id', async (req, res) => {
     res.json({ message: "Calibração excluída" });
   } catch (err) {
     console.error(err.message); res.status(500).send('Erro ao excluir Calibração');
+  }
+});
+
+app.get('/api/calibracoes/:id/detalhes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const calQuery = `
+      SELECT c.*, p.nome as pesquisador_nome, q.nome as qpu_nome,
+             ra.temperatura, ra.pressao, ra.umidade, ra.vibracao, ra.campo_magnetico, ra.observacoes as ambiente_observacoes
+      FROM calibracao c
+      LEFT JOIN pesquisador p ON c.id_pesquisador = p.id_pesquisador
+      LEFT JOIN QPU q ON c.id_qpu = q.id_qpu
+      LEFT JOIN registroambiente ra ON c.id_registro_ambiente = ra.id_registro_ambiente
+      WHERE c.id_calibracao = $1;
+    `;
+    const calResult = await pool.query(calQuery, [id]);
+    if (calResult.rows.length === 0) {
+      return res.status(404).send('Calibração não encontrada');
+    }
+    const calibracao = calResult.rows[0];
+
+    const seqQuery = `
+      SELECT sp.*
+      FROM sequenciapulso sp
+      JOIN utilizacalibracao uc ON sp.id_sequencia = uc.id_sequencia
+      WHERE uc.id_calibracao = $1;
+    `;
+    const seqResult = await pool.query(seqQuery, [id]);
+    
+    res.json({
+      calibracao,
+      sequencias: seqResult.rows
+    });
+  } catch (err) {
+    console.error(err.message); res.status(500).send('Erro ao buscar detalhes da calibração');
   }
 });
 
@@ -1074,7 +1144,13 @@ app.post('/api/db/init', async (req, res) => {
       await client.query("INSERT INTO experimento (nome, objetivo, data_hora_inicio, data_hora_fim, status_execucao, observacoes, id_pesquisador, id_qpu, id_registro_ambiente) VALUES ('Simulação VQE', 'Rodar algoritmo VQE para molécula de H2', NOW(), NULL, 'Executando', 'Executando em background', 2, 1, 5);");
 
       // Calibrações
-      await client.query("INSERT INTO calibracao (data_hora_inicio, data_hora_fim, tipo_calibracao, versao_parametros, resultado, observacoes, id_pesquisador, id_qpu, id_registro_ambiente) VALUES (NOW() - INTERVAL '4 days', NOW() - INTERVAL '4 days' + INTERVAL '2 hours', 'Frequência de Qubit', 'v1.4.2', 'Frequências calibradas com erro < 100 kHz', 'Sucesso', 1, 1, 1), (NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days' + INTERVAL '1 hour', 'Pulso de Pi', 'v1.4.3', 'Amplitude ajustada para 12.3 mV', 'Sucesso', 2, 1, 3);");
+      await client.query(`
+        INSERT INTO calibracao (data_hora_inicio, data_hora_fim, tipo_calibracao, versao_parametros, resultado, observacoes, id_pesquisador, id_qpu, id_registro_ambiente) 
+        VALUES 
+        (NOW() - INTERVAL '4 days', NOW() - INTERVAL '4 days' + INTERVAL '2 hours', 'Frequência de Qubit', 'v1.4.2', 'Sucesso', 'Frequências calibradas com erro < 100 kHz', 1, 1, 1), 
+        (NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days' + INTERVAL '1 hour', 'Pulso de Pi', 'v1.4.3', 'Otimização Parcial', 'Amplitude ajustada para 12.3 mV', 2, 1, 3),
+        (NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day' + INTERVAL '30 minutes', 'Calibração de Leitura', 'v1.4.4', 'Falha Crítica', 'Ruído excessivo no amplificador criogênico HEMT', 1, 1, 4);
+      `);
 
       // Porta Quantica
       await client.query("INSERT INTO portaquantica (nome_porta, categoria, numero_qubits_alvo, descricao) VALUES ('Hadamard', '1-Qubit', 1, 'Cria superposição de estados'), ('Pauli-X', '1-Qubit', 1, 'Porta NOT quântica'), ('CNOT', '2-Qubits', 2, 'Porta lógica controlada-NOT');");

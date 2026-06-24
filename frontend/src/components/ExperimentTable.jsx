@@ -1,4 +1,4 @@
-export default function ExperimentTable({ experimentos = [] }) {
+export default function ExperimentTable({ experimentos = [], onVerDetalhes }) {
   const list = experimentos && experimentos.length > 0
     ? experimentos.map(exp => ({
         id: exp.id_experimento,
@@ -6,7 +6,7 @@ export default function ExperimentTable({ experimentos = [] }) {
         status: exp.status_execucao,
         data: exp.data_inicio,
         pesquisador: exp.pesquisador_nome || 'N/A',
-        temp: exp.temperatura !== null && exp.temperatura !== undefined ? `${Number(exp.temperatura).toFixed(1)} K` : '---',
+        temp: exp.temperatura !== null && exp.temperatura !== undefined ? `${Number(exp.temperatura).toFixed(4)} K` : '---',
         pressao: exp.pressao !== null && exp.pressao !== undefined ? `${Number(exp.pressao).toFixed(2)} mTorr` : '---',
         vibracao: exp.vibracao !== null && exp.vibracao !== undefined ? `${Number(exp.vibracao).toFixed(2)} µm/s` : '---'
       }))
@@ -30,6 +30,7 @@ export default function ExperimentTable({ experimentos = [] }) {
             <th style={{ padding: '8px' }}>Pressão</th>
             <th style={{ padding: '8px' }}>Vibração</th>
             <th style={{ padding: '8px' }}>Status</th>
+            <th style={{ padding: '8px' }}>Ações</th>
           </tr>
         </thead>
         <tbody style={{ fontSize: '0.9rem' }}>
@@ -53,6 +54,23 @@ export default function ExperimentTable({ experimentos = [] }) {
                 }}>
                   {exp.status}
                 </span>
+              </td>
+              <td style={{ padding: '8px' }}>
+                <button 
+                  onClick={() => onVerDetalhes && onVerDetalhes(exp.id)} 
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--accent-purple)',
+                    color: 'var(--accent-purple)',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Detalhes
+                </button>
               </td>
             </tr>
           ))}
