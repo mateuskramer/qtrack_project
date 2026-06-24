@@ -8,7 +8,6 @@ import ExperimentTable from './components/ExperimentTable'
 import FidelityChart from './components/FidelityChart'
 import ReadoutChart from './components/ReadoutChart'
 import Copilot from './components/Copilot'
-import CopilotHistory from './components/CopilotHistory'
 
 // Importações do Recharts para os gráficos dos relatórios
 import { 
@@ -20,6 +19,15 @@ function App() {
   const [telaAtual, setTelaAtual] = useState('dashboard')
   const [listaQpus, setListaQpus] = useState([])
   const [listaAmbientes, setListaAmbientes] = useState([])
+  
+  // Estado para controlar se a barra lateral principal está colapsada
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('qtrack_sidebar_collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('qtrack_sidebar_collapsed', sidebarCollapsed);
+  }, [sidebarCollapsed]);
 
   // Estado para armazenar as várias conversas do Copilot
   const [conversations, setConversations] = useState(() => {
@@ -494,7 +502,12 @@ function App() {
 
   return (
     <div className="layout">
-      <Sidebar telaAtual={telaAtual} setTelaAtual={setTelaAtual} />
+      <Sidebar 
+        telaAtual={telaAtual} 
+        setTelaAtual={setTelaAtual} 
+        collapsed={sidebarCollapsed} 
+        setCollapsed={setSidebarCollapsed} 
+      />
 
       <main className="main">
         {/* ================= TELA: DASHBOARD ================= */}
@@ -1204,16 +1217,6 @@ WHERE mq.nome_metrica = 'TaxaErro' GROUP BY ra.temperatura ORDER BY ra.temperatu
             setConversations={setConversations}
             activeConvId={activeConvId}
             setActiveConvId={setActiveConvId}
-          />
-        )}
-
-        {telaAtual === 'copilot_history' && (
-          <CopilotHistory 
-            conversations={conversations}
-            setConversations={setConversations}
-            activeConvId={activeConvId}
-            setActiveConvId={setActiveConvId}
-            setTelaAtual={setTelaAtual}
           />
         )}
       </main>

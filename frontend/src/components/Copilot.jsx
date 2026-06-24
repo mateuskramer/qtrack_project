@@ -14,6 +14,15 @@ export default function Copilot({
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('qtrack_selected_model') || '');
 
+  // Estado para controlar se a barra lateral de histórico do chat está colapsada
+  const [chatSidebarCollapsed, setChatSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('qtrack_chat_sidebar_collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('qtrack_chat_sidebar_collapsed', chatSidebarCollapsed);
+  }, [chatSidebarCollapsed]);
+
   const messagesEndRef = useRef(null);
 
   // Rola até o final das mensagens
@@ -269,47 +278,77 @@ export default function Copilot({
       {/* 1. Painel Lateral de Histórico de Conversas (Abas) */}
       <div 
         style={{ 
-          width: '240px', 
+          width: chatSidebarCollapsed ? '70px' : '240px', 
           borderRight: '1px solid var(--border-color)', 
-          padding: '15px 10px', 
+          padding: chatSidebarCollapsed ? '15px 5px' : '15px 10px', 
           display: 'flex', 
           flexDirection: 'column', 
           gap: '15px',
-          background: 'rgba(11, 15, 25, 0.4)'
+          background: 'rgba(11, 15, 25, 0.4)',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflowX: 'hidden'
         }}
       >
-        <button
-          onClick={handleCreateNewConversation}
-          style={{
-            padding: '10px',
-            background: 'transparent',
-            border: '1px dashed var(--accent-purple)',
-            color: 'var(--text-main)',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)';
-            e.currentTarget.style.border = '1px solid var(--accent-purple)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.border = '1px dashed var(--accent-purple)';
-          }}
-        >
-          ➕ Nova Conversa
-        </button>
+        <div style={{ display: 'flex', flexDirection: chatSidebarCollapsed ? 'column' : 'row', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={handleCreateNewConversation}
+            style={{
+              flex: 1,
+              width: chatSidebarCollapsed ? '44px' : 'auto',
+              height: chatSidebarCollapsed ? '44px' : 'auto',
+              padding: '10px',
+              background: 'transparent',
+              border: '1px dashed var(--accent-purple)',
+              color: 'var(--text-main)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+            title="Nova Conversa"
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)';
+              e.currentTarget.style.border = '1px solid var(--accent-purple)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.border = '1px dashed var(--accent-purple)';
+            }}
+          >
+            {chatSidebarCollapsed ? '➕' : '➕ Nova Conversa'}
+          </button>
+          
+          <button
+            onClick={() => setChatSidebarCollapsed(!chatSidebarCollapsed)}
+            style={{
+              width: '36px',
+              height: '36px',
+              background: 'rgba(30, 41, 59, 0.5)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.2s'
+            }}
+            title={chatSidebarCollapsed ? "Expandir Histórico" : "Recolher Histórico"}
+          >
+            {chatSidebarCollapsed ? '▶' : '◀'}
+          </button>
+        </div>
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', paddingLeft: '5px', fontWeight: 'bold', letterSpacing: '1px' }}>
-            HISTÓRICO
-          </span>
+          {!chatSidebarCollapsed && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', paddingLeft: '5px', fontWeight: 'bold', letterSpacing: '1px' }}>
+              HISTÓRICO
+            </span>
+          )}
           
           {conversations.map(conv => {
             const isActive = conv.id === activeConvId;
@@ -317,14 +356,15 @@ export default function Copilot({
               <div
                 key={conv.id}
                 onClick={() => setActiveConvId(conv.id)}
+                title={conv.title}
                 style={{
-                  padding: '10px 12px',
+                  padding: chatSidebarCollapsed ? '10px 0' : '10px 12px',
                   borderRadius: '8px',
                   background: isActive ? 'var(--accent-purple)' : 'transparent',
                   color: isActive ? 'white' : 'var(--text-muted)',
                   cursor: 'pointer',
                   display: 'flex',
-                  justifyContent: 'space-between',
+                  justifyContent: chatSidebarCollapsed ? 'center' : 'space-between',
                   alignItems: 'center',
                   transition: 'all 0.2s',
                   fontSize: '0.88rem'
@@ -336,27 +376,33 @@ export default function Copilot({
                   if (!isActive) e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '5px' }}>
-                  💬 {conv.title}
-                </span>
-                
-                {conversations.length > 1 && (
-                  <button
-                    onClick={(e) => handleDeleteConversation(conv.id, e)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: isActive ? 'white' : '#ef4444',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      opacity: isActive ? 0.7 : 0.4,
-                      transition: 'opacity 0.2s'
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
-                    onMouseOut={(e) => e.currentTarget.style.opacity = isActive ? 0.7 : 0.4}
-                  >
-                    🗑️
-                  </button>
+                {chatSidebarCollapsed ? (
+                  <span style={{ fontSize: '1.2rem' }}>💬</span>
+                ) : (
+                  <>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '5px' }}>
+                      💬 {conv.title}
+                    </span>
+                    
+                    {conversations.length > 1 && (
+                      <button
+                        onClick={(e) => handleDeleteConversation(conv.id, e)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: isActive ? 'white' : '#ef4444',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          opacity: isActive ? 0.7 : 0.4,
+                          transition: 'opacity 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                        onMouseOut={(e) => e.currentTarget.style.opacity = isActive ? 0.7 : 0.4}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             );
