@@ -625,124 +625,10 @@ function App() {
               </div>
               <details style={{ marginTop: '15px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                  💻 Visualizar Definição DDL, Seed SQL e Consulta
+                  💻 Visualizar Consulta SQL
                 </summary>
-                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>1. DDL das Tabelas Envolvidas</h4>
-                    <pre style={{ color: '#38bdf8', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
-{`CREATE TABLE criostato (
-  id_criostato SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  fabricante VARCHAR(255),
-  modelo VARCHAR(255),
-  temperatura_nominal DECIMAL(10,4),
-  status_operacional VARCHAR(255) DEFAULT 'Ativo'
-);
-
-CREATE TABLE pesquisador (
-  id_pesquisador SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE,
-  instituicao VARCHAR(255),
-  area_atuacao VARCHAR(255)
-);
-
-CREATE TABLE qpu (
-  id_qpu SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  fabricante VARCHAR(255),
-  modelo VARCHAR(255),
-  tecnologia VARCHAR(255),
-  data_instalacao DATE,
-  status_operacional VARCHAR(255) DEFAULT 'Ativo',
-  id_criostato INT NOT NULL REFERENCES criostato(id_criostato)
-);
-
-CREATE TABLE qubit (
-  id_qubit SERIAL PRIMARY KEY,
-  indice_qubit INT,
-  tipo_qubit VARCHAR(255),
-  frequencia_ressonancia DECIMAL(10,4),
-  status_qubit VARCHAR(255) DEFAULT 'Ativo',
-  observacoes TEXT,
-  id_qpu INT NOT NULL REFERENCES qpu(id_qpu) ON DELETE CASCADE
-);
-
-CREATE TABLE experimento (
-  id_experimento SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  objetivo TEXT,
-  data_hora_inicio TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  data_hora_fim TIMESTAMP WITHOUT TIME ZONE,
-  status_execucao VARCHAR(255) DEFAULT 'Planejado',
-  observacoes TEXT,
-  id_pesquisador INT NOT NULL REFERENCES pesquisador(id_pesquisador),
-  id_qpu INT NOT NULL REFERENCES qpu(id_qpu) ON DELETE CASCADE
-);
-
-CREATE TABLE medequbit (
-  id_experimento INT REFERENCES experimento(id_experimento) ON DELETE CASCADE,
-  id_qubit INT REFERENCES qubit(id_qubit) ON DELETE CASCADE,
-  nome_metrica VARCHAR(255) NOT NULL,
-  valor DECIMAL(12,6),
-  unidade VARCHAR(255),
-  data_hora_medicao TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  metodo_obtencao VARCHAR(255),
-  observacoes TEXT,
-  PRIMARY KEY (id_experimento, id_qubit, nome_metrica)
-);`}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>2. SQL de Inserção de Dados (DML / Seeds)</h4>
-                    <pre style={{ color: '#22c55e', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
-{`-- 1. Inserir Criostato
-INSERT INTO criostato (nome, fabricante, modelo, temperatura_nominal, status_operacional) 
-VALUES ('Criostato Principal', 'Bluefors', 'LD250', 0.0100, 'Ativo');
-
--- 2. Inserir QPU Triton-20
-INSERT INTO qpu (nome, fabricante, modelo, tecnologia, data_instalacao, status_operacional, id_criostato) 
-VALUES ('QPU Triton-20', 'IBM', 'Quantum Eagle v3', 'Supercondutor', '2025-01-15', 'Ativo', 1);
-
--- 3. Inserir Pesquisador
-INSERT INTO pesquisador (nome, email, instituicao, area_atuacao)
-VALUES ('Dr. Alice Smith', 'alice@ufsc.br', 'UFSC', 'Controle Quântico');
-
--- 4. Inserir Qubits na QPU Triton-20 (Indices 0 a 19)
-INSERT INTO qubit (indice_qubit, tipo_qubit, frequencia_ressonancia, status_qubit, observacoes, id_qpu)
-SELECT i, 'Transmon', 5.0 + i * 0.05, 'Ativo', 'Qubit padrão da grade supercondutora', 1
-FROM generate_series(0, 19) AS i;
-
--- 5. Inserir Experimentos de Monitoramento Diário (100 dias)
-INSERT INTO experimento (id_experimento, nome, objetivo, status_execucao, id_pesquisador, id_qpu)
-SELECT 
-  d, 
-  'Calibração Diária T1 - Dia ' || d, 
-  'Mapeamento de Coerência', 
-  'Concluído', 
-  1, 
-  1
-FROM generate_series(1, 100) AS d;
-
--- 6. Inserir Medições de T1 com decaimento linear de ~30% e ruído
-INSERT INTO medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao)
-SELECT 
-  d, 
-  q.id_qubit, 
-  'T1', 
-  (100.0 - (d * 0.3) + (random() * 3.0) - 1.5), 
-  'us', 
-  NOW() - (d * INTERVAL '1 day'), 
-  'Autocalibração'
-FROM qubit q
-CROSS JOIN generate_series(1, 100) AS d
-WHERE q.id_qpu = 1;`}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>3. Código da Consulta SQL</h4>
-                    <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
+                <div style={{ marginTop: '12px' }}>
+                  <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b', margin: 0 }}>
 {`WITH diario_qpu AS (
   SELECT p.id_qpu, p.nome as qpu_nome, DATE(mq.data_hora_medicao) as data, AVG(mq.valor) as media_t1
   FROM MedeQubit mq JOIN Qubit q ON mq.id_qubit = q.id_qubit JOIN QPU p ON q.id_qpu = p.id_qpu
@@ -756,8 +642,7 @@ ranqueamento_piores AS (
 SELECT d.qpu_nome, d.data, d.media_t1, r.pior_qubit_id, r.pior_valor_t1
 FROM diario_qpu d LEFT JOIN ranqueamento_piores r ON d.id_qpu = r.id_qpu AND d.data = r.data AND r.rn = 1
 ORDER BY d.data ASC, d.qpu_nome ASC;`}
-                    </pre>
-                  </div>
+                  </pre>
                 </div>
               </details>
             </div>
@@ -824,97 +709,14 @@ ORDER BY d.data ASC, d.qpu_nome ASC;`}
               </div>
               <details style={{ marginTop: '15px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                  💻 Visualizar Definição DDL, Seed SQL e Consulta
+                  💻 Visualizar Consulta SQL
                 </summary>
-                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>1. DDL das Tabelas Envolvidas</h4>
-                    <pre style={{ color: '#38bdf8', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
-{`CREATE TABLE pesquisador (
-  id_pesquisador SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE,
-  instituicao VARCHAR(255),
-  area_atuacao VARCHAR(255)
-);
-
-CREATE TABLE experimento (
-  id_experimento SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  objetivo TEXT,
-  data_hora_inicio TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  data_hora_fim TIMESTAMP WITHOUT TIME ZONE,
-  status_execucao VARCHAR(255) DEFAULT 'Planejado',
-  observacoes TEXT,
-  id_pesquisador INT NOT NULL REFERENCES pesquisador(id_pesquisador),
-  id_qpu INT NOT NULL REFERENCES qpu(id_qpu) ON DELETE CASCADE
-);
-
-CREATE TABLE portaquantica (
-  id_porta SERIAL PRIMARY KEY,
-  nome_porta VARCHAR(255) NOT NULL,
-  categoria VARCHAR(255),
-  numero_qubits_alvo SMALLINT DEFAULT 1,
-  descricao TEXT
-);
-
-CREATE TABLE medeporta (
-  id_experimento INT REFERENCES experimento(id_experimento) ON DELETE CASCADE,
-  id_porta INT REFERENCES portaquantica(id_porta) ON DELETE CASCADE,
-  nome_metrica VARCHAR(255) NOT NULL,
-  valor DECIMAL(12,6),
-  unidade VARCHAR(255),
-  data_hora_medicao TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  metodo_obtencao VARCHAR(255),
-  observacoes TEXT,
-  PRIMARY KEY (id_experimento, id_porta, nome_metrica)
-);`}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>2. SQL de Inserção de Dados (DML / Seeds)</h4>
-                    <pre style={{ color: '#22c55e', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
-{`-- 1. Inserir Pesquisador
-INSERT INTO pesquisador (nome, email, instituicao, area_atuacao) 
-VALUES ('Dr. Alice Smith', 'alice@ufsc.br', 'UFSC', 'Controle Quântico');
-
--- 2. Inserir Experimento
-INSERT INTO experimento (id_experimento, nome, objetivo, status_execucao, id_pesquisador, id_qpu)
-VALUES (999, 'Experimento Calibração de Portas', 'Medir fidelidade média das portas', 'Concluído', 1, 1);
-
--- 3. Inserir Portas Quânticas (1Q e 2Q)
-INSERT INTO portaquantica (id_porta, nome_porta, categoria, numero_qubits_alvo, descricao) VALUES
-(1, 'H', '1 Qubit', 1, 'Porta Hadamard'),
-(2, 'X', '1 Qubit', 1, 'Porta Pauli-X'),
-(3, 'Y', '1 Qubit', 1, 'Porta Pauli-Y'),
-(4, 'Z', '1 Qubit', 1, 'Porta Pauli-Z'),
-(5, 'S', '1 Qubit', 1, 'Porta S (Fase pi/2)'),
-(6, 'T', '1 Qubit', 1, 'Porta T (Fase pi/4)'),
-(7, 'CNOT', '2 Qubits', 2, 'Porta Controlled-NOT (CX)'),
-(8, 'CZ', '2 Qubits', 2, 'Porta Controlled-Z'),
-(9, 'SWAP', '2 Qubits', 2, 'Porta SWAP');
-
--- 4. Inserir Medições de Fidelidade das Operações
-INSERT INTO medeporta (id_experimento, id_porta, nome_metrica, valor, unidade, metodo_obtencao) VALUES
-(999, 1, 'Fidelidade', 0.995200, 'Ratio', 'Randomized Benchmarking'),
-(999, 2, 'Fidelidade', 0.996100, 'Ratio', 'Randomized Benchmarking'),
-(999, 3, 'Fidelidade', 0.995400, 'Ratio', 'Randomized Benchmarking'),
-(999, 4, 'Fidelidade', 0.995900, 'Ratio', 'Randomized Benchmarking'),
-(999, 5, 'Fidelidade', 0.994700, 'Ratio', 'Randomized Benchmarking'),
-(999, 6, 'Fidelidade', 0.994300, 'Ratio', 'Randomized Benchmarking'),
-(999, 7, 'Fidelidade', 0.962000, 'Ratio', 'Interleaved RB'),
-(999, 8, 'Fidelidade', 0.958000, 'Ratio', 'Interleaved RB'),
-(999, 9, 'Fidelidade', 0.954000, 'Ratio', 'Interleaved RB');`}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>3. Código da Consulta SQL</h4>
-                    <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
+                <div style={{ marginTop: '12px' }}>
+                  <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b', margin: 0 }}>
 {`SELECT pq.nome_porta, pq.numero_qubits_alvo || ' Qubit(s)' as categoria, AVG(mp.valor) as fidelidade_media
 FROM MedePorta mp JOIN PortaQuantica pq ON mp.id_porta = pq.id_porta JOIN Experimento e ON mp.id_experimento = e.id_experimento
 WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_alvo ORDER BY categoria DESC, fidelidade_media DESC;`}
-                    </pre>
-                  </div>
+                  </pre>
                 </div>
               </details>
             </div>
@@ -960,94 +762,14 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
               </div>
               <details style={{ marginTop: '15px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                  💻 Visualizar Definição DDL, Seed SQL e Consulta
+                  💻 Visualizar Consulta SQL
                 </summary>
-                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>1. DDL das Tabelas Envolvidas</h4>
-                    <pre style={{ color: '#38bdf8', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
-{`CREATE TABLE registroambiente (
-  id_registro_ambiente SERIAL PRIMARY KEY,
-  data_hora_registro TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  temperatura DECIMAL(10,4),
-  pressao DECIMAL(10,4),
-  umidade DECIMAL(10,4),
-  vibracao DECIMAL(10,4),
-  campo_magnetico DECIMAL(10,4),
-  observacoes TEXT
-);
-
-CREATE TABLE experimento (
-  id_experimento SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  objetivo TEXT,
-  data_hora_inicio TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  data_hora_fim TIMESTAMP WITHOUT TIME ZONE,
-  status_execucao VARCHAR(255) DEFAULT 'Planejado',
-  observacoes TEXT,
-  id_pesquisador INT NOT NULL REFERENCES pesquisador(id_pesquisador),
-  id_qpu INT NOT NULL REFERENCES qpu(id_qpu) ON DELETE CASCADE,
-  id_registro_ambiente INT REFERENCES registroambiente(id_registro_ambiente) ON DELETE SET NULL
-);
-
-CREATE TABLE qubit (
-  id_qubit SERIAL PRIMARY KEY,
-  indice_qubit INT,
-  tipo_qubit VARCHAR(255),
-  frequencia_ressonancia DECIMAL(10,4),
-  status_qubit VARCHAR(255) DEFAULT 'Ativo',
-  observacoes TEXT,
-  id_qpu INT NOT NULL REFERENCES qpu(id_qpu) ON DELETE CASCADE
-);
-
-CREATE TABLE medequbit (
-  id_experimento INT REFERENCES experimento(id_experimento) ON DELETE CASCADE,
-  id_qubit INT REFERENCES qubit(id_qubit) ON DELETE CASCADE,
-  nome_metrica VARCHAR(255) NOT NULL,
-  valor DECIMAL(12,6),
-  unidade VARCHAR(255),
-  data_hora_medicao TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  metodo_obtencao VARCHAR(255),
-  observacoes TEXT,
-  PRIMARY KEY (id_experimento, id_qubit, nome_metrica)
-);`}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>2. SQL de Inserção de Dados (DML / Seeds)</h4>
-                    <pre style={{ color: '#22c55e', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
-{`-- 1. Inserir registros de temperatura (estável ~10mK vs picos térmicos de 22mK e 38mK)
-INSERT INTO registroambiente (id_registro_ambiente, temperatura, pressao, umidade, vibracao, campo_magnetico, observacoes) VALUES
-(1001, 0.0102, 0.85, 30.0, 0.02, 0.10, 'Estável'),
-(1002, 0.0225, 0.88, 32.5, 0.05, 0.11, 'Flutuação de temperatura'),
-(1003, 0.0385, 0.92, 34.0, 0.14, 0.12, 'Pico de temperatura - Anomalia Térmica');
-
--- 2. Inserir Experimentos realizados sob tais condições ambientais
-INSERT INTO experimento (id_experimento, nome, objetivo, status_execucao, id_pesquisador, id_qpu, id_registro_ambiente) VALUES
-(2001, 'Exp Temp Estável', 'Teste sob temperatura normal', 'Concluído', 1, 1, 1001),
-(2002, 'Exp Temp Flutuante', 'Teste sob flutuação de 22mK', 'Concluído', 1, 1, 1002),
-(2003, 'Exp Temp Crítica', 'Teste sob pico de calor de 38mK', 'Concluído', 1, 1, 1003);
-
--- 3. Inserir Qubit
-INSERT INTO qubit (id_qubit, indice_qubit, tipo_qubit, frequencia_ressonancia, status_qubit, id_qpu)
-VALUES (99, 1, 'Transmon', 5.05, 'Ativo', 1);
-
--- 4. Inserir Medições de Taxa de Erro de Leitura correspondentes
--- Note o aumento exponencial da taxa de erro com o aumento da temperatura
-INSERT INTO medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, metodo_obtencao) VALUES
-(2001, 99, 'TaxaErro', 0.0015, 'Ratio', 'State Discrimination'),
-(2002, 99, 'TaxaErro', 0.0180, 'Ratio', 'State Discrimination'),
-(2003, 99, 'TaxaErro', 0.1150, 'Ratio', 'State Discrimination');`}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '5px' }}>3. Código da Consulta SQL</h4>
-                    <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b' }}>
+                <div style={{ marginTop: '12px' }}>
+                  <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b', margin: 0 }}>
 {`SELECT ra.temperatura, AVG(mq.valor) as taxa_erro_media
 FROM RegistroAmbiente ra JOIN Experimento e ON ra.id_registro_ambiente = e.id_registro_ambiente JOIN MedeQubit mq ON e.id_experimento = mq.id_experimento
 WHERE mq.nome_metrica = 'TaxaErro' GROUP BY ra.temperatura ORDER BY ra.temperatura;`}
-                    </pre>
-                  </div>
+                  </pre>
                 </div>
               </details>
             </div>
