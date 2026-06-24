@@ -959,18 +959,18 @@ app.post('/api/db/init', async (req, res) => {
       // Criostatos
       await client.query("INSERT INTO criostato (nome, fabricante, modelo, temperatura_nominal, status_operacional) VALUES ('Criostato Principal', 'Bluefors', 'LD250', 0.0100, 'Ativo'), ('Criostato de Testes', 'Oxford Instruments', 'Triton', 0.0150, 'Ativo');");
       
-      // QPUs
-      await client.query("INSERT INTO qpu (nome, fabricante, modelo, tecnologia, data_instalacao, status_operacional, id_criostato) VALUES ('QPU Triton-31', 'IBM', 'Quantum Eagle v3', 'Supercondutor', '2025-01-15', 'Ativo', 1), ('QPU Borealis-5', 'Xanadu', 'Photonic 5Q', 'Fotônica', '2025-05-10', 'Ativo', 2);");
+      // QPUs (cada uma com 20 qubits)
+      await client.query("INSERT INTO qpu (nome, fabricante, modelo, tecnologia, data_instalacao, status_operacional, id_criostato) VALUES ('QPU Triton-20', 'IBM', 'Quantum Eagle v3', 'Supercondutor', '2025-01-15', 'Ativo', 1), ('QPU Borealis-20', 'Xanadu', 'Photonic 20Q', 'Fotônica', '2025-05-10', 'Ativo', 2);");
 
-      // Qubits para Triton-31
-      for (let i = 0; i < 31; i++) {
+      // Qubits para Triton-20
+      for (let i = 0; i < 20; i++) {
         let status = 'Saudável';
-        if ([13, 27].includes(i)) status = 'Crítico';
-        else if ([5, 17, 24].includes(i)) status = 'Atenção';
+        if (i === 13) status = 'Crítico';
+        else if ([5, 17].includes(i)) status = 'Atenção';
         await client.query(`INSERT INTO qubit (indice_qubit, tipo_qubit, frequencia_ressonancia, status_qubit, observacoes, id_qpu) VALUES ($1, 'Transmon', $2, $3, 'Qubit padrão da grade supercondutora', 1);`, [i, 5.0 + i * 0.05, status]);
       }
-      // Qubits para Borealis-5
-      for (let i = 0; i < 5; i++) {
+      // Qubits para Borealis-20
+      for (let i = 0; i < 20; i++) {
         await client.query(`INSERT INTO qubit (indice_qubit, tipo_qubit, frequencia_ressonancia, status_qubit, observacoes, id_qpu) VALUES ($1, 'Fóton polarizado', $2, 'Saudável', 'Qubit óptico', 2);`, [i, 193.1 + i * 0.1]);
       }
 
@@ -989,11 +989,13 @@ app.post('/api/db/init', async (req, res) => {
       // Porta Quantica
       await client.query("INSERT INTO portaquantica (nome_porta, numero_qubits_alvo, descricao) VALUES ('Hadamard', 1, 'Cria superposição de estados'), ('Pauli-X', 1, 'Porta NOT quântica'), ('CNOT', 2, 'Porta lógica controlada-NOT');");
 
-      // MedeQubit (T1 e TaxaErro)
+      // MedeQubit (T1 e TaxaErro) dinâmico para todos os qubits gerados
+      const allQubits = await client.query('SELECT id_qubit FROM qubit;');
       for (let day = 4; day >= 0; day--) {
-        for (let q = 1; q <= 31; q++) {
-          await client.query(`INSERT INTO medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao) VALUES (2, $1, 'T1', $2, 'μs', NOW() - INTERVAL '${day} days', 'Decaimento Livre');`, [q, 60.0 + Math.sin(q + day) * 15.0]);
-          await client.query(`INSERT INTO medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao) VALUES (2, $1, 'TaxaErro', $2, 'taxa', NOW() - INTERVAL '${day} days', 'Tomografia de Leitura');`, [q, 0.01 + Math.cos(q - day) * 0.005]);
+        for (const row of allQubits.rows) {
+          const qId = row.id_qubit;
+          await client.query(`INSERT INTO medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao) VALUES (2, $1, 'T1', $2, 'μs', NOW() - INTERVAL '${day} days', 'Decaimento Livre');`, [qId, 60.0 + Math.sin(qId + day) * 15.0]);
+          await client.query(`INSERT INTO medequbit (id_experimento, id_qubit, nome_metrica, valor, unidade, data_hora_medicao, metodo_obtencao) VALUES (2, $1, 'TaxaErro', $2, 'taxa', NOW() - INTERVAL '${day} days', 'Tomografia de Leitura');`, [qId, 0.01 + Math.cos(qId - day) * 0.005]);
         }
       }
 
