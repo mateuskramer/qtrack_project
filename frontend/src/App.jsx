@@ -72,7 +72,9 @@ function App() {
   // Estados para armazenar os dados dos relatórios (Abas acadêmicas)
   const [dadosT1, setDadosT1] = useState([])
   const [dadosFidelidade, setDadosFidelidade] = useState([])
-  const [dadosTemperatura, setDadosTemperatura] = useState([])
+  const [dadosEfetividade, setDadosEfetividade] = useState([])
+  const [dadosCustoBeneficio, setDadosCustoBeneficio] = useState([])
+  const [dadosProblematicos, setDadosProblematicos] = useState([])
 
   // ================= ESTADOS DOS FORMULÁRIOS (CRUD) =================
   
@@ -483,7 +485,9 @@ function App() {
     if (telaAtual === 'relatorios') {
       fetch('http://localhost:8000/api/relatorios/t1').then(res => res.json()).then(dados => setDadosT1(dados));
       fetch('http://localhost:8000/api/relatorios/fidelidade').then(res => res.json()).then(dados => setDadosFidelidade(dados));
-      fetch('http://localhost:8000/api/relatorios/temperatura').then(res => res.json()).then(dados => setDadosTemperatura(dados));
+      fetch('http://localhost:8000/api/relatorios/efetividade').then(res => res.json()).then(dados => setDadosEfetividade(dados));
+      fetch('http://localhost:8000/api/relatorios/custo-beneficio').then(res => res.json()).then(dados => setDadosCustoBeneficio(dados));
+      fetch('http://localhost:8000/api/relatorios/problematicos').then(res => res.json()).then(dados => setDadosProblematicos(dados));
     }
     if (telaAtual === 'qpus') fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => setListaQpus(dados));
     if (telaAtual === 'criostatos') fetch('http://localhost:8000/api/criostatos').then(res => res.json()).then(dados => setListaCriostatos(dados));
@@ -552,10 +556,8 @@ function App() {
             </div>
           </>
         )}
-
-        {/* ================= TELA: RELATÓRIOS ACADÊMICOS ================= */}
         {telaAtual === 'relatorios' && (
-          <div style={{ padding: '20px', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          <div style={{ padding: '20px', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '35px' }}>
             <div>
               <h1 style={{ color: 'var(--text-main)' }}>Consultas Acadêmicas</h1>
               <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Resultados estruturados e representações gráficas das consultas do Item 6.</p>
@@ -567,7 +569,7 @@ function App() {
                 <div>
                   <h2 style={{ color: 'var(--text-main)' }}>Consulta 1: Evolução Diária do Tempo de Coerência (T1)</h2>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-                    <strong style={{ color: 'var(--text-main)' }}>Objetivo:</strong> Monitorar a degradação física do hardware comparando o T1 médio por processador e mapeando o qubit mais instável do dia. Envolve as tabelas <em>Experimento_Qubit</em>, <em>Qubit</em> e <em>Qpu</em>.
+                    <strong style={{ color: 'var(--text-main)' }}>Análise Física:</strong> Acompanha a evolução diária do tempo de relaxamento longitudinal (coerência física <em>T₁</em>) por processador quântico. Permite identificar a tendência de degradação temporal do hardware e aponta o qubit crítico que apresentou o pior <em>T₁</em> em cada dia de operação. Envolve as tabelas de telemetria <em style={{color: '#c084fc'}}>Experimento_Qubit</em>, a tabela de hardware <em style={{color: '#c084fc'}}>Qubit</em> e a tabela de processadores <em style={{color: '#c084fc'}}>Qpu</em>.
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -585,8 +587,9 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
-                <div style={{ flex: '1 1 45%', height: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                {/* Tabela em Cima */}
+                <div style={{ width: '100%', height: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-panel)', zIndex: 1 }}>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -613,7 +616,8 @@ function App() {
                   </table>
                 </div>
 
-                <div style={{ flex: '1 1 50%', height: '280px', background: 'var(--bg-main)', padding: '15px 10px 5px 10px', borderRadius: '8px' }}>
+                {/* Gráfico em Baixo */}
+                <div style={{ width: '100%', height: '320px', background: 'var(--bg-main)', padding: '20px 15px', borderRadius: '8px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart 
                       data={
@@ -673,7 +677,7 @@ ORDER BY d.data ASC, d.qpu_nome ASC;`}
                 <div>
                   <h2 style={{ color: 'var(--text-main)' }}>Consulta 2: Fidelidade Média por Porta Quântica</h2>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-                    <strong style={{ color: 'var(--text-main)' }}>Objetivo:</strong> Calcular a média geral de fidelidade por operation física para avaliar se as portas de acoplamento mais complexas (2 Qubits) estão sofrendo taxas de erro maiores. Envolve as tabelas <em>Experimento_Porta</em>, <em>PortaQuantica</em> e <em>Experimento</em>.
+                    <strong style={{ color: 'var(--text-main)' }}>Análise de Controle:</strong> Compara a fidelidade média de portas lógicas de 1 Qubit (portas de rotação única) contra portas lógicas de 2 Qubits (portas de emaranhamento complexas). Útil para mapear perdas por crosstalk e diagnosticar se o controle de dois corpos é o gargalo físico atual do sistema. Envolve as tabelas de resultados de controle <em style={{color: '#c084fc'}}>Experimento_Porta</em>, a especificação das portas <em style={{color: '#c084fc'}}>PortaQuantica</em> e a execução de rotinas em <em style={{color: '#c084fc'}}>Experimento</em>.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '15px', fontSize: '0.85rem', background: 'var(--bg-main)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
@@ -688,8 +692,9 @@ ORDER BY d.data ASC, d.qpu_nome ASC;`}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
-                <div style={{ flex: '1 1 40%', height: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                {/* Tabela em Cima */}
+                <div style={{ width: '100%', height: '220px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-panel)', zIndex: 1 }}>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
@@ -710,7 +715,8 @@ ORDER BY d.data ASC, d.qpu_nome ASC;`}
                   </table>
                 </div>
 
-                <div style={{ flex: '1 1 50%', height: '250px', background: 'var(--bg-main)', padding: '15px 10px 5px 10px', borderRadius: '8px' }}>
+                {/* Gráfico em Baixo */}
+                <div style={{ width: '100%', height: '320px', background: 'var(--bg-main)', padding: '20px 15px', borderRadius: '8px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosFidelidade}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.2} />
@@ -741,54 +747,97 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
               </details>
             </div>
 
-            {/* CONSULTA 3 */}
+            {/* CONSULTA 3: Efetividade de Calibração */}
             <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <h2 style={{ color: 'var(--text-main)' }}>Consulta 3: Impacto da Temperatura do Criostato na Taxa de Erro</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                <strong style={{ color: 'var(--text-main)' }}>Objetivo:</strong> Avaliar se flutuações na temperatura do ambiente criogênico estão correlacionadas com o aumento da taxa média de erro de leitura dos qubits. Envolve as tabelas <em>RegistroAmbiente</em>, <em>Experimento</em> e <em>Experimento_Qubit</em>.
-              </p>
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
-                <div style={{ flex: '1 1 40%', height: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <div>
+                <h2 style={{ color: 'var(--text-main)' }}>Consulta 3: Efetividade de Calibração (Impacto Médio)</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
+                  <strong style={{ color: 'var(--text-main)' }}>Análise de Manutenção:</strong> Avalia a efetividade individual de cada calibração realizada no laboratório, rankeando a variação e melhora percentual dos parâmetros físicos ajustados (antes vs depois). Utiliza funções de janela para agrupar e rankear o top 3 eventos mais impactantes de cada tipo de parâmetro físico (Fase DRAG, Frequência Rabi, Amplitude Pi), garantindo visibilidade analítica equilibrada. Envolve as tabelas de ajustes <em style={{color: '#c084fc'}}>Calibracao_Qubit</em> e o registro geral de manutenções <em style={{color: '#c084fc'}}>Calibracao</em>.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                {/* Tabela em Cima */}
+                <div style={{ width: '100%', height: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-panel)', zIndex: 1 }}>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '10px' }}>Temperatura</th>
-                        <th style={{ padding: '10px' }}>Taxa de Erro Média</th>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        <th style={{ padding: '10px' }}>Parâmetro</th>
+                        <th style={{ padding: '10px' }}>Calibração</th>
+                        <th style={{ padding: '10px' }}>Data</th>
+                        <th style={{ padding: '10px' }}>Var. Média</th>
+                        <th style={{ padding: '10px' }}>Melhora %</th>
+                        <th style={{ padding: '10px' }}>Rank</th>
                       </tr>
                     </thead>
-                    <tbody style={{ color: 'var(--text-main)' }}>
-                      {dadosTemperatura.map((row, i) => (
+                    <tbody style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                      {dadosEfetividade.map((row, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '10px' }}>{row.temperatura} K</td>
-                          <td style={{ padding: '10px' }}>{(Number(row.taxa_erro_media) * 100).toFixed(2)}%</td>
+                          <td style={{ padding: '10px', fontWeight: 'bold' }}>{row.parametro_ajustado}</td>
+                          <td style={{ padding: '10px' }}>#{row.id_calibracao} ({row.tipo_calibracao})</td>
+                          <td style={{ padding: '10px' }}>{new Date(row.data).toLocaleDateString('pt-BR')}</td>
+                          <td style={{ padding: '10px' }}>{Number(row.variacao_media).toFixed(4)}</td>
+                          <td style={{ padding: '10px', color: '#38bdf8' }}>
+                            {Number(row.melhora_percentual_media).toFixed(3)}%
+                          </td>
+                          <td style={{ padding: '10px', fontWeight: 'bold', color: 'var(--accent-purple)' }}>{row.rank_impacto}º</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                <div style={{ flex: '1 1 50%', height: '250px', background: 'var(--bg-main)', padding: '15px 10px 5px 10px', borderRadius: '8px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dadosTemperatura}>
+                {/* Gráfico em Baixo (Top 10 Calibrações na mesma ordem) */}
+                <div style={{ width: '100%', height: '320px', background: 'var(--bg-main)', padding: '20px 15px', borderRadius: '8px' }}>
+                  <h4 style={{ color: 'var(--text-main)', marginBottom: '10px', fontSize: '0.9rem', textAlign: 'center' }}>
+                    Porcentagem de Melhora Térmica Ajustada (%) - Top 10 Calibrações Ordenadas
+                  </h4>
+                  <ResponsiveContainer width="100%" height="90%">
+                    <BarChart 
+                      data={dadosEfetividade.slice(0, 10).map(d => ({
+                        name: `${d.parametro_ajustado.substring(0, 10)} (#${d.id_calibracao})`,
+                        'Melhora (%)': Number(Math.abs(Number(d.melhora_percentual_media)).toFixed(3)),
+                        parametro: d.parametro_ajustado
+                      }))}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.2} />
-                      <XAxis dataKey="temperatura" stroke="var(--text-muted)" unit="K" />
-                      <YAxis stroke="var(--text-muted)'" />
-                      <Tooltip formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`} />
-                      <Legend />
-                      <Bar dataKey="taxa_erro_media" name="Taxa de Erro Leitura" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <XAxis dataKey="name" stroke="var(--text-muted)" style={{ fontSize: '0.75rem' }} />
+                      <YAxis stroke="var(--text-muted)" />
+                      <Tooltip formatter={(v) => `${v}%`} />
+                      <Bar dataKey="Melhora (%)" radius={[4, 4, 0, 0]}>
+                        {dadosEfetividade.slice(0, 10).map((entry, index) => {
+                          let fill = 'var(--accent-purple)';
+                          if (entry.parametro_ajustado === 'Amplitude Pi') fill = '#ef4444'; // Red
+                          else if (entry.parametro_ajustado === 'Frequência Rabi') fill = '#38bdf8'; // Blue
+                          else if (entry.parametro_ajustado === 'Fase DRAG') fill = '#eab308'; // Yellow
+                          return <Cell key={`cell-${index}`} fill={fill} />;
+                        })}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
+
               <details style={{ marginTop: '15px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.85rem' }}>
                   💻 Visualizar Consulta SQL
                 </summary>
                 <div style={{ marginTop: '12px' }}>
                   <pre style={{ color: '#c084fc', fontSize: '0.75rem', whiteSpace: 'pre-wrap', background: '#0f172a', padding: '10px', borderRadius: '6px', fontFamily: 'monospace', border: '1px solid #1e293b', margin: 0 }}>
-{`SELECT ra.temperatura, AVG(mq.valor) as taxa_erro_media
-FROM RegistroAmbiente ra JOIN Experimento e ON ra.id_registro_ambiente = e.id_registro_ambiente JOIN Experimento_Qubit mq ON e.id_experimento = mq.id_experimento
-WHERE mq.nome_metrica = 'TaxaErro' GROUP BY ra.temperatura ORDER BY ra.temperatura;`}
+{`SELECT * FROM (
+  SELECT 
+    cq.parametro_ajustado,
+    c.id_calibracao,
+    c.tipo_calibracao,
+    DATE(c.data_hora_inicio) as data,
+    (cq.valor_depois - cq.valor_antes) as variacao_media,
+    (((cq.valor_depois - cq.valor_antes) / NULLIF(cq.valor_antes, 0)) * 100) as melhora_percentual_media,
+    DENSE_RANK() OVER(PARTITION BY cq.parametro_ajustado ORDER BY ABS(cq.valor_depois - cq.valor_antes) DESC) as rank_impacto
+  FROM Calibracao_Qubit cq
+  JOIN Calibracao c ON cq.id_calibracao = c.id_calibracao
+) ranked
+WHERE rank_impacto <= 3
+ORDER BY parametro_ajustado, rank_impacto;`}
                   </pre>
                 </div>
               </details>

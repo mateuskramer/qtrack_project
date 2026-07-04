@@ -528,6 +528,182 @@ app.get('/api/relatorios/temperatura', async (req, res) => {
   } catch (err) { console.error(err.message); res.status(500).send('Erro no Relatório 3'); }
 });
 
+// Novo Relatório 4: Efetividade de Calibração
+app.get('/api/relatorios/efetividade', async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM (
+        SELECT 
+          cq.parametro_ajustado,
+          c.id_calibracao,
+          c.tipo_calibracao,
+          DATE(c.data_hora_inicio) as data,
+          (cq.valor_depois - cq.valor_antes) as variacao_media,
+          (((cq.valor_depois - cq.valor_antes) / NULLIF(cq.valor_antes, 0)) * 100) as melhora_percentual_media,
+          DENSE_RANK() OVER(PARTITION BY cq.parametro_ajustado ORDER BY ABS(cq.valor_depois - cq.valor_antes) DESC) as rank_impacto
+        FROM Calibracao_Qubit cq
+        JOIN Calibracao c ON cq.id_calibracao = c.id_calibracao
+      ) ranked
+      WHERE rank_impacto <= 3
+      ORDER BY parametro_ajustado, rank_impacto;
+    `;
+    const result = await pool.query(query); res.json(result.rows);
+  } catch (err) { console.error(err.message); res.status(500).send('Erro no Relatório Efetividade'); }
+});
+
+// Novo Relatório 5: Degradação com Janela Temporal (LAG)
+app.get('/api/relatorios/degradacao', async (req, res) => {
+  try {
+    const dias = parseInt(req.query.dias) || 2;
+    let query = '';
+    if (dias === 3) {
+      query = `
+        WITH t1_diario AS (
+          SELECT 
+            mq.id_qubit,
+            q.indice_qubit,
+            p.nome as qpu_nome,
+            DATE(mq.data_hora_medicao) as data,
+            mq.valor as valor_t1,
+            LAG(mq.valor, 1) OVER(PARTITION BY mq.id_qubit ORDER BY DATE(mq.data_hora_medicao)) as t1_anterior_1,
+            LAG(mq.valor, 2) OVER(PARTITION BY mq.id_qubit ORDER BY DATE(mq.data_hora_medicao)) as t1_anterior_2,
+            LAG(mq.valor, 3) OVER(PARTITION BY mq.id_qubit ORDER BY DATE(mq.data_hora_medicao)) as t1_anterior_3
+          FROM Experimento_Qubit mq
+          JOIN Qubit q ON mq.id_qubit = q.id_qubit
+          JOIN Qpu p ON q.id_qpu = p.id_qpu
+          WHERE mq.nome_metrica = 'T1'
+        )
+        SELECT 
+          id_qubit,
+          indice_qubit,
+          qpu_nome,
+          data,
+          valor_t1,
+          t1_anterior_1,
+          t1_anterior_2,
+          t1_anterior_3,
+          (t1_anterior_3 - valor_t1) as queda_total
+        FROM t1_diario
+        WHERE valor_t1 < t1_anterior_1 AND t1_anterior_1 < t1_anterior_2 AND t1_anterior_2 < t1_anterior_3
+        ORDER BY queda_total DESC, data DESC;
+      `;
+    } else {
+      query = `
+        WITH t1_diario AS (
+          SELECT 
+            mq.id_qubit,
+            q.indice_qubit,
+            p.nome as qpu_nome,
+            DATE(mq.data_hora_medicao) as data,
+            mq.valor as valor_t1,
+            LAG(mq.valor, 1) OVER(PARTITION BY mq.id_qubit ORDER BY DATE(mq.data_hora_medicao)) as t1_anterior_1,
+            LAG(mq.valor, 2) OVER(PARTITION BY mq.id_qubit ORDER BY DATE(mq.data_hora_medicao)) as t1_anterior_2
+          FROM Experimento_Qubit mq
+          JOIN Qubit q ON mq.id_qubit = q.id_qubit
+          JOIN Qpu p ON q.id_qpu = p.id_qpu
+          WHERE mq.nome_metrica = 'T1'
+        )
+        SELECT 
+          id_qubit,
+          indice_qubit,
+          qpu_nome,
+          data,
+          valor_t1,
+          t1_anterior_1,
+          t1_anterior_2,
+          (t1_anterior_2 - valor_t1) as queda_total
+        FROM t1_diario
+        WHERE valor_t1 < t1_anterior_1 AND t1_anterior_1 < t1_anterior_2
+        ORDER BY queda_total DESC, data DESC;
+      `;
+    }
+    const result = await pool.query(query); res.json(result.rows);
+  } catch (err) { console.error(err.message); res.status(500).send('Erro no Relatório Degradação'); }
+});
+
+// Novo Relatório 6: Custo-benefício de Calibração
+app.get('/api/relatorios/custo-beneficio', async (req, res) => {
+  try {
+    const query = `
+      WITH taxas_erro AS (
+        SELECT 
+          q.id_qpu,
+          DATE(mq.data_hora_medicao) as data_medicao,
+          mq.valor as taxa_erro
+        FROM Experimento_Qubit mq
+        JOIN Qubit q ON mq.id_qubit = q.id_qubit
+        WHERE mq.nome_metrica = 'TaxaErro'
+      ),
+      comparativo_calib AS (
+        SELECT 
+          c.id_calibracao,
+          c.id_qpu,
+          c.data_hora_inicio as data_calib,
+          (
+            SELECT AVG(te.taxa_erro) 
+            FROM taxas_erro te 
+            WHERE te.id_qpu = c.id_qpu 
+              AND te.data_medicao >= DATE(c.data_hora_inicio) - INTERVAL '7 days'
+              AND te.data_medicao < DATE(c.data_hora_inicio)
+          ) as erro_medio_antes,
+          (
+            SELECT AVG(te.taxa_erro) 
+            FROM taxas_erro te 
+            WHERE te.id_qpu = c.id_qpu 
+              AND te.data_medicao > DATE(c.data_hora_inicio)
+              AND te.data_medicao <= DATE(c.data_hora_inicio) + INTERVAL '7 days'
+          ) as erro_medio_depois
+        FROM Calibracao c
+      )
+      SELECT 
+        cc.id_calibracao,
+        p.nome as qpu_nome,
+        DATE(cc.data_calib) as data_calibracao,
+        cc.erro_medio_antes,
+        cc.erro_medio_depois,
+        (cc.erro_medio_antes - cc.erro_medio_depois) as reducao_erro,
+        ((cc.erro_medio_antes - cc.erro_medio_depois) / NULLIF(cc.erro_medio_antes, 0)) * 100 as melhora_percentual
+      FROM comparativo_calib cc
+      JOIN Qpu p ON cc.id_qpu = p.id_qpu
+      WHERE cc.erro_medio_antes IS NOT NULL AND cc.erro_medio_depois IS NOT NULL
+      ORDER BY melhora_percentual DESC;
+    `;
+    const result = await pool.query(query); res.json(result.rows);
+  } catch (err) { console.error(err.message); res.status(500).send('Erro no Relatório Custo-Benefício'); }
+});
+
+// Novo Relatório 7: Ranking de Qubits Problemáticos
+app.get('/api/relatorios/problematicos', async (req, res) => {
+  try {
+    const query = `
+      WITH freq_calib AS (
+        SELECT id_qubit, COUNT(*) as qtd_calibracoes
+        FROM Calibracao_Qubit
+        GROUP BY id_qubit
+      ),
+      erro_medio AS (
+        SELECT mq.id_qubit, AVG(mq.valor) as taxa_erro_media
+        FROM Experimento_Qubit mq
+        WHERE mq.nome_metrica = 'TaxaErro'
+        GROUP BY mq.id_qubit
+      )
+      SELECT 
+        q.id_qubit,
+        q.indice_qubit,
+        p.nome as qpu_nome,
+        COALESCE(fc.qtd_calibracoes, 0) as total_calibracoes,
+        em.taxa_erro_media,
+        DENSE_RANK() OVER (ORDER BY em.taxa_erro_media DESC, COALESCE(fc.qtd_calibracoes, 0) DESC) as rank_criticidade
+      FROM Qubit q
+      JOIN Qpu p ON q.id_qpu = p.id_qpu
+      LEFT JOIN freq_calib fc ON q.id_qubit = fc.id_qubit
+      LEFT JOIN erro_medio em ON q.id_qubit = em.id_qubit
+      ORDER BY rank_criticidade ASC;
+    `;
+    const result = await pool.query(query); res.json(result.rows);
+  } catch (err) { console.error(err.message); res.status(500).send('Erro no Relatório Qubits Problemáticos'); }
+});
+
 // ================= DASHBOARD DINÂMICO REAL-TIME =================
 app.get('/api/dashboard/qubits/:id_qpu', async (req, res) => {
   try {
@@ -1222,26 +1398,33 @@ app.post('/api/db/init', async (req, res) => {
       // Pesquisadores
       await client.query("INSERT INTO Pesquisador (nome, email, instituicao, area_atuacao) VALUES ('Dr. Alice Smith', 'alice@ufsc.br', 'UFSC', 'Controle Quântico'), ('Bob Jones', 'bob@ufsc.br', 'UFSC', 'Mitigação de Erros');");
 
+      // Deterministic LCG random number generator (Seed: 4242)
+      let lcgState = 4242;
+      function rand() {
+        lcgState = (lcgState * 1664525 + 1013904223) % 4294967296;
+        return lcgState / 4294967296;
+      }
+
       // Gerar registros ambientais para os últimos 105 dias
       const ambValues = [];
       for (let day = 105; day >= 0; day--) {
         // Temperatura base muito estável em torno de 10 mK (0.0100 Kelvin)
-        let temp = 0.0100 + (Math.random() - 0.5) * 0.0002;
+        let temp = 0.0100 + (rand() - 0.5) * 0.0002;
         
         // Picos de calor (desafios ambientais isolados)
         if (day === 70 || day === 71) {
-          temp = 0.038 + Math.random() * 0.005; // Spike térmico de ~40mK (catastrófico)
+          temp = 0.038 + rand() * 0.005; // Spike térmico de ~40mK (catastrófico)
         } else if (day === 30) {
-          temp = 0.022 + Math.random() * 0.003; // Flutuação média
+          temp = 0.022 + rand() * 0.003; // Flutuação média
         }
         
-        const pressao = (0.8 + Math.random() * 0.1).toFixed(4);
+        const pressao = (0.8 + rand() * 0.1).toFixed(4);
         const umidade = (30.0 + Math.sin(day) * 2.0).toFixed(4);
         // Vibração correlacionada com a temperatura (sistemas mecânicos de bombeamento em estresse)
         const vibracao = (temp > 0.030) 
-          ? (0.12 + Math.random() * 0.04).toFixed(4) 
-          : (0.02 + Math.random() * 0.01).toFixed(4);
-        const campo_magnetico = (0.10 + Math.random() * 0.02).toFixed(4);
+          ? (0.12 + rand() * 0.04).toFixed(4) 
+          : (0.02 + rand() * 0.01).toFixed(4);
+        const campo_magnetico = (0.10 + rand() * 0.02).toFixed(4);
         
         let obs = 'Estável';
         if (temp > 0.030) obs = 'Pico de temperatura - Anomalia Térmica';
@@ -1359,35 +1542,36 @@ app.post('/api/db/init', async (req, res) => {
           const qId = q.id_qubit;
           const idx = q.indice_qubit;
           
-          // Modelo físico de T1 base
-          const baseT1 = qpuId === 1 
-            ? (85.0 + Math.sin(idx * 0.7) * 15.0) 
-            : (140.0 + Math.cos(idx * 0.7) * 20.0);
+          let t1Val;
+          let errVal;
           
-          // Degradação térmica
-          const tempFactor = 1.0 / Math.pow(temp / 0.010, 1.2);
-          
-          // Tendência geral de queda contínua ao longo dos 100 dias (de 1.0 até 0.70)
-          const ageFactor = 1.0 - (100 - day) * 0.003;
-          
-          // Pequena flutuação aleatória diária (TLS)
-          const noiseT1 = (Math.random() - 0.5) * 1.5;
-          
-          let t1Val = baseT1 * ageFactor + noiseT1;
-          t1Val = Math.max(5.0, t1Val);
-          
-          // Modelo físico de taxa de erro de leitura
-          const baseErr = qpuId === 1
-            ? (0.0015 + (idx % 4) * 0.0005) 
-            : (0.0010 + (idx % 3) * 0.0004);
-            
-          const tempErrFactor = Math.pow(temp / 0.010, 2.5);
-          
-          // A taxa de erro aumenta lenta e progressivamente ao longo dos 100 dias (de 1.0 até 1.5)
-          const ageErrorFactor = 1.0 + (100 - day) * 0.005;
-          
-          let errVal = baseErr * tempErrFactor * ageErrorFactor + (Math.random() - 0.5) * 0.0001;
-          errVal = Math.max(0.0001, Math.min(0.25, errVal));
+          if (qpuId === 1) {
+            // Triton-20 (Supercondutora): Restauração do T1 original com ruídos extremamente pequenos e tendência de queda
+            const baseT1 = 85.0 + Math.sin(idx * 0.7) * 15.0;
+            const ageFactor = 1.0 - (100 - day) * 0.003;
+            const noiseT1 = (rand() - 0.5) * 0.4; // ruído diário muito pequeno
+            t1Val = baseT1 * ageFactor + noiseT1;
+            t1Val = Math.max(5.0, t1Val);
+
+            const baseErr = 0.0015 + (idx % 4) * 0.0005;
+            const tempErrFactor = Math.pow(temp / 0.010, 2.5);
+            const ageErrorFactor = 1.0 + (100 - day) * 0.005;
+            errVal = baseErr * tempErrFactor * ageErrorFactor + (rand() - 0.5) * 0.0001;
+            errVal = Math.max(0.0001, Math.min(0.25, errVal));
+          } else {
+            // Borealis-20 (Fotônica): Restauração do T1 original com ruídos extremamente pequenos e tendência de queda
+            const baseT1 = 140.0 + Math.cos(idx * 0.7) * 20.0;
+            const ageFactor = 1.0 - (100 - day) * 0.001; // queda bem lenta
+            const noiseT1 = (rand() - 0.5) * 0.2; // ruído diário muito pequeno
+            t1Val = baseT1 * ageFactor + noiseT1;
+            t1Val = Math.max(5.0, t1Val);
+
+            const baseErr = 0.0010 + (idx % 3) * 0.0004;
+            const tempErrFactor = Math.pow(temp / 0.010, 2.5);
+            const ageErrorFactor = 1.0 + (100 - day) * 0.003;
+            errVal = baseErr * tempErrFactor * ageErrorFactor + (rand() - 0.5) * 0.00005;
+            errVal = Math.max(0.0001, Math.min(0.25, errVal));
+          }
           
           qubitValues.push(`(${expId}, ${qId}, 'T1', ${t1Val.toFixed(4)}, 'μs', NOW() - (${day} * INTERVAL '1 day'), 'Decaimento Livre')`);
           qubitValues.push(`(${expId}, ${qId}, 'TaxaErro', ${errVal.toFixed(6)}, 'taxa', NOW() - (${day} * INTERVAL '1 day'), 'Tomografia de Leitura')`);
@@ -1412,24 +1596,26 @@ app.post('/api/db/init', async (req, res) => {
           
           let baseFidelity;
           if (isTwoQubit) {
+            // Portas de 2 qubits têm menor fidelidade (simulando crosstalk/física difícil)
             baseFidelity = qpuId === 1
-              ? (0.985 - (gate.id_porta % 3) * 0.004)
-              : (0.988 - (gate.id_porta % 3) * 0.003);
+              ? (0.960 - (gate.id_porta % 3) * 0.005) // ~95.0% - 96.0%
+              : (0.970 - (gate.id_porta % 3) * 0.004); // ~96.2% - 97.0%
           } else {
+            // Portas de 1 qubit têm fidelidade excelente (99.9%+)
             baseFidelity = qpuId === 1
-              ? (0.9994 - (gate.id_porta % 5) * 0.0003)
-              : (0.9996 - (gate.id_porta % 5) * 0.0002);
+              ? (0.9992 - (gate.id_porta % 5) * 0.0002) // ~99.9%
+              : (0.9997 - (gate.id_porta % 5) * 0.0001); // ~99.95%+
           }
           
-          // Degradação com a temperatura (reduzida para fidelidades mais realistas)
+          // Degradação térmica
           const lossCoeff = isTwoQubit ? 0.003 : 0.0005;
           const tempLoss = lossCoeff * (Math.pow(temp / 0.010, 1.8) - 1.0);
           
-          // Degradação progressiva ao longo dos 100 dias (decaimento de 0.012% ao dia para 2Q, 0.0012% ao dia para 1Q)
+          // Degradação temporal (drift)
           const gateAgeLoss = (100 - day) * (isTwoQubit ? 0.00012 : 0.000012);
           
           // Ruído diário pequeno
-          const noise = (Math.random() - 0.5) * 0.0002;
+          const noise = (rand() - 0.5) * 0.0002;
           
           let fidelity = baseFidelity - tempLoss - gateAgeLoss + noise;
           fidelity = Math.max(0.75, Math.min(0.9999, fidelity));
@@ -1505,10 +1691,33 @@ app.post('/api/db/init', async (req, res) => {
         const qpuId = cal.id_qpu;
         const qubits = qubitsByQpu[qpuId];
         
+        // Fase DRAG (melhora de 0.5% a 6.5%)
+        const dragBefore = 90.0;
+        const dragAfter = dragBefore * (1.0 - (0.005 + rand() * 0.06));
+        
+        // Frequência Rabi (melhora de 3% a 15%)
+        const rabiBefore = 5.250;
+        const rabiAfter = rabiBefore * (1.0 - (0.03 + rand() * 0.12));
+        
+        // Amplitude Pi (melhora de 8% a 28%)
+        const piBefore = 0.600;
+        const piAfter = piBefore * (1.0 - (0.08 + rand() * 0.20));
+        
         if (qubits && qubits.length >= 3) {
-          abrangeValues.push(`(${calId}, ${qubits[0].id_qubit}, 'Frequência Rabi', 5.250000, 5.248000)`);
-          abrangeValues.push(`(${calId}, ${qubits[1].id_qubit}, 'Amplitude Pi', 0.480000, 0.475000)`);
-          abrangeValues.push(`(${calId}, ${qubits[2].id_qubit}, 'Fase DRAG', 90.000000, 89.500000)`);
+          // Seleciona 3 qubits aleatórios determinísticos para calibração
+          const q0Idx = Math.floor(rand() * qubits.length);
+          let q1Idx = Math.floor(rand() * qubits.length);
+          while (q1Idx === q0Idx) { q1Idx = Math.floor(rand() * qubits.length); }
+          let q2Idx = Math.floor(rand() * qubits.length);
+          while (q2Idx === q0Idx || q2Idx === q1Idx) { q2Idx = Math.floor(rand() * qubits.length); }
+
+          const q0 = qubits[q0Idx];
+          const q1 = qubits[q1Idx];
+          const q2 = qubits[q2Idx];
+          
+          abrangeValues.push(`(${calId}, ${q0.id_qubit}, 'Fase DRAG', ${dragBefore.toFixed(6)}, ${dragAfter.toFixed(6)})`);
+          abrangeValues.push(`(${calId}, ${q1.id_qubit}, 'Frequência Rabi', ${rabiBefore.toFixed(6)}, ${rabiAfter.toFixed(6)})`);
+          abrangeValues.push(`(${calId}, ${q2.id_qubit}, 'Amplitude Pi', ${piBefore.toFixed(6)}, ${piAfter.toFixed(6)})`);
         }
         utilizacalValues.push(`(${calId}, 2)`);
       }
