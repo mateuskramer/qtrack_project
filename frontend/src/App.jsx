@@ -87,6 +87,7 @@ function App() {
   const [statusQpu, setStatusQpu] = useState('Ativo')
   const [idCriostato, setIdCriostato] = useState('')
   const [idEditando, setIdEditando] = useState(null)
+  const [mostrarModalCredenciais, setMostrarModalCredenciais] = useState(false)
 
   // 2. Qubits
   const [listaQubits, setListaQubits] = useState([])
@@ -436,6 +437,37 @@ function App() {
       const res = await fetch(`http://localhost:8000/api/calibracoes/${id}`, { method: 'DELETE' });
       if (res.ok) setListaCalibracoes(listaCalibracoes.filter(c => c.id_calibracao !== id));
     } catch (err) { console.error(err); }
+  }
+
+  const salvarConfiguracao = async () => {
+    setLoadingConfig(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/db/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: dbUser, password: dbPassword, database: dbName, host: dbHost, port: dbPort })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        // Recarrega todos os dados nos estados locais com o novo banco conectado
+        fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => { setListaQpus(dados); if (dados.length > 0) setQpuSelecionada(dados[0].id_qpu); });
+        fetch('http://localhost:8000/api/criostatos').then(res => res.json()).then(dados => setListaCriostatos(dados));
+        fetch('http://localhost:8000/api/pesquisadores').then(res => res.json()).then(dados => setListaPesquisadores(dados));
+        fetch('http://localhost:8000/api/qubits').then(res => res.json()).then(dados => setListaQubits(dados));
+        fetch('http://localhost:8000/api/experimentos').then(res => res.json()).then(dados => setListaExperimentos(dados));
+        fetch('http://localhost:8000/api/calibracoes').then(res => res.json()).then(dados => setListaCalibracoes(dados));
+        return true;
+      } else {
+        alert("Erro: " + data.error);
+        return false;
+      }
+    } catch (err) {
+      alert("Erro ao conectar com o servidor: " + err.message);
+      return false;
+    } finally {
+      setLoadingConfig(false);
+    }
   }
 
   const handleVerDetalhesExperimento = async (id) => {
@@ -1195,104 +1227,42 @@ ORDER BY parametro_ajustado, rank_impacto;`}
             </div>
 
             <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '600px' }}>
-              <h3 style={{ color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>🔑 Credenciais de Conexão</h3>
+              <h3 style={{ color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>🔑 Status da Conexão</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0, lineHeight: '1.4' }}>
-                Caso o banco de dados do seu PostgreSQL local tenha credenciais diferentes das padrões (1234/qtrack), configure-as abaixo antes de inicializar ou consultar os dados.
+                O QTrack se conecta ao seu banco PostgreSQL local para ler a telemetria e gerenciar a infraestrutura.
               </p>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Usuário</label>
-                  <input 
-                    type="text" 
-                    value={dbUser} 
-                    onChange={(e) => setDbUser(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)' }}
-                  />
+              <div style={{ background: 'var(--bg-main)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', flexWrap: 'wrap', gap: '5px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Configuração Atual:</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--text-main)', wordBreak: 'break-all' }}>
+                    postgresql://{dbUser}@{dbHost}:{dbPort}/{dbName}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Senha</label>
-                  <input 
-                    type="password" 
-                    value={dbPassword} 
-                    onChange={(e) => setDbPassword(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '15px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Nome do Banco</label>
-                  <input 
-                    type="text" 
-                    value={dbName} 
-                    onChange={(e) => setDbName(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Host</label>
-                  <input 
-                    type="text" 
-                    value={dbHost} 
-                    onChange={(e) => setDbHost(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Porta</label>
-                  <input 
-                    type="text" 
-                    value={dbPort} 
-                    onChange={(e) => setDbPort(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)' }}
-                  />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Status da Conexão:</span>
+                  <span style={{ fontWeight: 'bold', color: '#4ade80' }}>Configurado (Pool Ativo)</span>
                 </div>
               </div>
 
               <button 
-                onClick={async () => {
-                  setLoadingConfig(true);
-                  try {
-                    const res = await fetch('http://localhost:8000/api/db/config', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ user: dbUser, password: dbPassword, database: dbName, host: dbHost, port: dbPort })
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                      alert(data.message);
-                      // Recarrega todos os dados nos estados locais com o novo banco conectado
-                      fetch('http://localhost:8000/api/qpus').then(res => res.json()).then(dados => { setListaQpus(dados); if (dados.length > 0) setQpuSelecionada(dados[0].id_qpu); });
-                      fetch('http://localhost:8000/api/criostatos').then(res => res.json()).then(dados => setListaCriostatos(dados));
-                      fetch('http://localhost:8000/api/pesquisadores').then(res => res.json()).then(dados => setListaPesquisadores(dados));
-                      fetch('http://localhost:8000/api/qubits').then(res => res.json()).then(dados => setListaQubits(dados));
-                      fetch('http://localhost:8000/api/experimentos').then(res => res.json()).then(dados => setListaExperimentos(dados));
-                      fetch('http://localhost:8000/api/calibracoes').then(res => res.json()).then(dados => setListaCalibracoes(dados));
-                    } else {
-                      alert("Erro: " + data.error);
-                    }
-                  } catch (err) {
-                    alert("Erro ao conectar com o servidor: " + err.message);
-                  } finally {
-                    setLoadingConfig(false);
-                  }
-                }}
-                disabled={loadingConfig}
+                onClick={() => setMostrarModalCredenciais(true)}
                 style={{ 
-                  padding: '12px 20px', 
+                  padding: '10px 20px', 
                   background: 'var(--accent-purple)', 
                   color: 'white', 
                   border: 'none', 
-                  borderRadius: '8px', 
+                  borderRadius: '6px', 
                   cursor: 'pointer', 
                   fontWeight: 'bold',
                   marginTop: '10px',
-                  alignSelf: 'flex-start'
+                  alignSelf: 'flex-start',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}
               >
-                {loadingConfig ? 'Conectando...' : 'Salvar e Testar Conexão'}
+                ⚙️ Configurar Credenciais de Conexão
               </button>
             </div>
 
@@ -1604,6 +1574,137 @@ ORDER BY parametro_ajustado, rank_impacto;`}
                 style={{ padding: '8px 20px', background: 'var(--accent-purple)', border: 'none', borderRadius: '6px', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: CREDENCIAIS DE CONEXÃO ================= */}
+      {mostrarModalCredenciais && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-panel)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            padding: '30px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: '0 20px 45px rgba(0,0,0,0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            boxSizing: 'border-box'
+          }}>
+            <div>
+              <h3 style={{ color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>🔑 Credenciais de Conexão</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '6px', lineHeight: '1.4' }}>
+                Configure as credenciais de acesso ao seu banco PostgreSQL local.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Usuário</label>
+                  <input 
+                    type="text" 
+                    value={dbUser} 
+                    onChange={(e) => setDbUser(e.target.value)} 
+                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Senha</label>
+                  <input 
+                    type="password" 
+                    value={dbPassword} 
+                    onChange={(e) => setDbPassword(e.target.value)} 
+                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Nome do Banco</label>
+                <input 
+                  type="text" 
+                  value={dbName} 
+                  onChange={(e) => setDbName(e.target.value)} 
+                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)', width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Host</label>
+                  <input 
+                    type="text" 
+                    value={dbHost} 
+                    onChange={(e) => setDbHost(e.target.value)} 
+                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Porta</label>
+                  <input 
+                    type="text" 
+                    value={dbPort} 
+                    onChange={(e) => setDbPort(e.target.value)} 
+                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '10px' }}>
+              <button 
+                onClick={() => setMostrarModalCredenciais(false)}
+                disabled={loadingConfig}
+                style={{ 
+                  padding: '8px 16px', 
+                  background: 'transparent', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '6px', 
+                  color: 'var(--text-muted)', 
+                  cursor: 'pointer', 
+                  fontSize: '0.9rem' 
+                }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  const sucesso = await salvarConfiguracao();
+                  if (sucesso) {
+                    setMostrarModalCredenciais(false);
+                  }
+                }}
+                disabled={loadingConfig}
+                style={{ 
+                  padding: '8px 24px', 
+                  background: 'var(--accent-purple)', 
+                  border: 'none', 
+                  borderRadius: '6px', 
+                  color: 'white', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  fontSize: '0.9rem' 
+                }}
+              >
+                {loadingConfig ? 'Conectando...' : 'Salvar e Testar'}
               </button>
             </div>
           </div>

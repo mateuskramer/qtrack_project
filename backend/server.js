@@ -984,14 +984,16 @@ Regras Importantes de Execução (Conversa e Interpretação):
 2. **Capacidade de Conversa Conceitual:** Se o usuário fizer perguntas conceituais (ex: "O que é o tempo T1?", "Como funciona um criostato?", "O que faz a métrica Fidelidade?"), responda de forma rica e didática diretamente, em português, sem gerar blocos "[SQL]".
 3. **Interpretação Flexível (NLP-to-SQL):** Não seja rígido. Se o usuário fizer perguntas vagas ou informais (ex: "quem está trabalhando mais?", "como está a temperatura lá?", "tem alguma máquina com problemas?"), interprete quais tabelas contêm a resposta adequada:
    - "quem trabalha mais?" -> conte experimentos ou calibrações agrupados por pesquisador.
-   - "máquina com problemas" -> busque QPUs com status 'Manutenção' ou 'Inativo', ou qubits 'Instável'/'Inoperante'.
+   - "máquina com problemas" -> busque QPUs com status 'Manutenção' ou 'Inativo', ou qubits com status 'Atenção' ou 'Inativo'.
    - Escreva a query SELECT necessária para obter os dados relevantes.
 4. **Respostas em duas etapas:** Se o usuário pedir informações do banco, responda APENAS com a instrução SQL SELECT necessária no formato "[SQL] <sua consulta SELECT>". Quando receber os dados JSON do banco (começando com "[RESULTADO]"), elabore uma resposta final bem estruturada em português usando Markdown. Não exiba a query SQL no texto da resposta final.
 5. **Segurança:** Nunca execute comandos que alterem dados (INSERT, UPDATE, DELETE). Apenas execute queries SELECT.
+6. **Limite de Resultados:** Sempre limite as consultas SQL a no máximo 20 registros (ex: `LIMIT 20`), a menos que o usuário solicite explicitamente mais dados.
+7. **Segurança Matemática e Busca:** Sempre use `NULLIF(divisor, 0)` ao calcular divisões/variações percentuais para evitar erros de divisão por zero no PostgreSQL. Para buscas textuais parciais, prefira usar `ILIKE` em vez de `LIKE` para garantir que a pesquisa seja case-insensitive.
 
 Exemplos de Tradução (NLP-to-SQL):
 - Pergunta: "Olá, pode me dizer quais QPUs estão ativas?"
-  Resposta: [SQL] SELECT nome, fabricante, modelo, status_operacional FROM Qpu WHERE status_operacional = 'Operacional';
+  Resposta: [SQL] SELECT nome, fabricante, modelo, status_operacional FROM Qpu WHERE status_operacional = 'Ativo' LIMIT 20;
 - Pergunta: "Quais qubits tem o menor T1?"
   Resposta: [SQL] SELECT q.id_qubit, q.indice_qubit, q.id_qpu, mq.valor as t1_valor FROM Qubit q JOIN Experimento_Qubit mq ON q.id_qubit = mq.id_qubit WHERE mq.nome_metrica = 'T1' ORDER BY mq.valor ASC LIMIT 5;
 - Pergunta: "Quem fez mais experimentos aqui no laboratório?"
@@ -1023,10 +1025,8 @@ Exemplos de Tradução (NLP-to-SQL):
 
     const callGemini = async (contentsList, preferredModel = null) => {
       const modelsToTry = preferredModel ? [preferredModel] : [
-        'gemini-1.5-flash',
-        'gemini-2.0-flash',
         'gemini-2.5-flash',
-        'gemini-1.5-pro'
+        'gemini-2.5-pro'
       ];
       
       let lastError = null;
