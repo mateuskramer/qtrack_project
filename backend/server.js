@@ -352,9 +352,28 @@ app.get('/api/experimentos/:id/detalhes', async (req, res) => {
     `;
     const seqResult = await pool.query(seqQuery, [id]);
     
+    const sequencias = [];
+    for (const seq of seqResult.rows) {
+      const pulsesResult = await pool.query(
+        'SELECT * FROM Pulso WHERE id_sequencia = $1 ORDER BY ordem ASC;',
+        [seq.id_sequencia]
+      );
+      const gatesResult = await pool.query(
+        `SELECT pq.* FROM PortaQuantica pq 
+         JOIN SequenciaPulso_Porta spp ON pq.id_porta = spp.id_porta 
+         WHERE spp.id_sequencia = $1;`,
+        [seq.id_sequencia]
+      );
+      sequencias.push({
+        ...seq,
+        pulsos: pulsesResult.rows,
+        portas: gatesResult.rows
+      });
+    }
+    
     res.json({
       experimento,
-      sequencias: seqResult.rows
+      sequencias
     });
   } catch (err) {
     console.error(err.message); res.status(500).send('Erro ao buscar detalhes do experimento');
@@ -466,6 +485,25 @@ app.get('/api/calibracoes/:id/detalhes', async (req, res) => {
     `;
     const seqResult = await pool.query(seqQuery, [id]);
 
+    const sequencias = [];
+    for (const seq of seqResult.rows) {
+      const pulsesResult = await pool.query(
+        'SELECT * FROM Pulso WHERE id_sequencia = $1 ORDER BY ordem ASC;',
+        [seq.id_sequencia]
+      );
+      const gatesResult = await pool.query(
+        `SELECT pq.* FROM PortaQuantica pq 
+         JOIN SequenciaPulso_Porta spp ON pq.id_porta = spp.id_porta 
+         WHERE spp.id_sequencia = $1;`,
+        [seq.id_sequencia]
+      );
+      sequencias.push({
+        ...seq,
+        pulsos: pulsesResult.rows,
+        portas: gatesResult.rows
+      });
+    }
+
     const abrangeQuery = `
       SELECT a.*, q.indice_qubit, q.tipo_qubit
       FROM Calibracao_Qubit a
@@ -476,7 +514,7 @@ app.get('/api/calibracoes/:id/detalhes', async (req, res) => {
     
     res.json({
       calibracao,
-      sequencias: seqResult.rows,
+      sequencias,
       qubitsCalibrados: abrangeResult.rows
     });
   } catch (err) {

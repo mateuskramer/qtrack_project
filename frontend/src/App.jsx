@@ -1554,10 +1554,37 @@ ORDER BY parametro_ajustado, rank_impacto;`}
                         Versão: {seq.versao}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      <strong>Finalidade:</strong> {seq.finalidade}
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+                      <div><strong>Finalidade:</strong> {seq.finalidade}</div>
+                      {seq.portas && seq.portas.length > 0 && (
+                        <div>
+                          <strong>🚪 Portas Lógicas:</strong>{' '}
+                          {seq.portas.map(g => `${g.nome_porta} (${g.categoria})`).join(', ')}
+                        </div>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.85rem', marginTop: '6px', color: '#cbd5e1' }}>{seq.descricao}</div>
+                    
+                    {/* Lista de Pulsos Físicos */}
+                    {seq.pulsos && seq.pulsos.length > 0 && (
+                      <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          📈 Sequência de Pulsos Físicos:
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {seq.pulsos.map((p, idx) => (
+                            <div key={p.id_pulso || idx} style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: '4px', gap: '10px', flexWrap: 'wrap' }}>
+                              <span>
+                                <strong style={{ color: '#a78bfa' }}>#{p.ordem}</strong> {p.tipo_pulso} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({p.forma_onda})</span>
+                              </span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                                Amp: {Number(p.amplitude).toFixed(2)}V | Dur: {Number(p.duracao).toFixed(1)}ns | Freq: {Number(p.frequencia).toFixed(2)}GHz | Fase: {Number(p.fase).toFixed(0)}°
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
