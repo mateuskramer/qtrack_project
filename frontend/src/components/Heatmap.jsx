@@ -1,19 +1,26 @@
 export default function Heatmap({ qubits = [] }) {
-  // Se não houver qubits reais, usa o mock padrão de fallback
-  const list = qubits && qubits.length > 0 
-    ? qubits.map(q => {
-        let status = 'healthy';
-        const st = q.status_operacional || q.status_qubit;
-        if (st === 'Atenção' || st === 'warning') status = 'warning';
-        else if (st === 'Inativo' || st === 'inactive' || st === 'Crítico' || st === 'critical') status = 'inactive';
-        return { index: q.indice_qubit, status };
-      })
-    : Array.from({ length: 31 }, (_, i) => {
-        let status = 'healthy';
-        if ([13, 27].includes(i)) status = 'inactive';
-        else if ([5, 17, 24].includes(i)) status = 'warning';
-        return { index: i, status };
-      });
+  if (!qubits || qubits.length === 0) {
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "120px",
+        color: "#94a3b8",
+        fontSize: "14px"
+      }}>
+        Sem qubits cadastrados nesta QPU.
+      </div>
+    );
+  }
+
+  const list = qubits.map(q => {
+    let status = 'healthy';
+    const st = q.status_operacional || q.status_qubit;
+    if (st === 'Atenção' || st === 'warning') status = 'warning';
+    else if (st === 'Inativo' || st === 'inactive' || st === 'Crítico' || st === 'critical') status = 'inactive';
+    return { index: q.indice_qubit, status };
+  });
 
   const getStyle = (status) => {
     const colors = {

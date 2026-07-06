@@ -1,20 +1,30 @@
 export default function ExperimentTable({ experimentos = [], onVerDetalhes }) {
-  const list = experimentos && experimentos.length > 0
-    ? experimentos.map(exp => ({
-        id: exp.id_experimento,
-        nome: exp.nome,
-        status: exp.status_execucao,
-        data: exp.data_inicio,
-        pesquisador: exp.pesquisador_nome || 'N/A',
-        temp: exp.temperatura !== null && exp.temperatura !== undefined ? `${Number(exp.temperatura).toFixed(4)} K` : '---',
-        pressao: exp.pressao !== null && exp.pressao !== undefined ? `${Number(exp.pressao).toFixed(2)} mTorr` : '---',
-        vibracao: exp.vibracao !== null && exp.vibracao !== undefined ? `${Number(exp.vibracao).toFixed(2)} µm/s` : '---'
-      }))
-    : [
-        { id: 1, nome: 'Randomized Benchmarking', status: 'Concluído', data: '05/05/2026 14:30', pesquisador: 'Dr. Alice', temp: '0.1 K', pressao: '0.80 mTorr', vibracao: '0.05 µm/s' },
-        { id: 2, nome: 'T1 Characterization', status: 'Executando', data: '08/05/2026 09:15', pesquisador: 'Bob', temp: '0.2 K', pressao: '0.90 mTorr', vibracao: '0.08 µm/s' },
-        { id: 3, nome: 'Gate Tomography', status: 'Planejado', data: '10/05/2026 --:--', pesquisador: 'Dr. Alice', temp: '---', pressao: '---', vibracao: '---' }
-      ];
+  if (!experimentos || experimentos.length === 0) {
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "120px",
+        color: "#94a3b8",
+        fontSize: "14px",
+        padding: "20px"
+      }}>
+        Nenhum experimento recente registrado nesta QPU.
+      </div>
+    );
+  }
+
+  const list = experimentos.map(exp => ({
+    id: exp.id_experimento,
+    nome: exp.nome,
+    status: exp.status_execucao,
+    data: exp.data_inicio,
+    pesquisador: exp.pesquisador_nome || 'N/A',
+    temp: exp.temperatura !== null && exp.temperatura !== undefined ? `${Number(exp.temperatura).toFixed(4)} K` : '---',
+    pressao: exp.pressao !== null && exp.pressao !== undefined ? `${Number(exp.pressao).toFixed(2)} mTorr` : '---',
+    vibracao: exp.vibracao !== null && exp.vibracao !== undefined ? `${Number(exp.vibracao).toFixed(2)} µm/s` : '---'
+  }));
 
   return (
     <div className="panel experiments" style={{ width: '100%' }}>

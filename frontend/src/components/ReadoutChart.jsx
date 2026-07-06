@@ -1,10 +1,22 @@
 import React from 'react';
 
 export default function ReadoutChart({ distribuicao = [] }) {
-  // Fallback de dados caso a distribuição ainda esteja carregando
-  let values = distribuicao && distribuicao.length > 0
-    ? distribuicao.map(item => Number(item.t1_valor))
-    : [60, 65, 72, 58, 63, 85, 78, 66, 74, 82, 55, 68, 71, 80, 77, 59, 64, 69, 73, 76];
+  if (!distribuicao || distribuicao.length === 0) {
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        color: "#94a3b8",
+        fontSize: "14px"
+      }}>
+        Sem dados de distribuição de T1 nesta QPU.
+      </div>
+    );
+  }
+
+  const values = distribuicao.map(item => Number(item.t1_valor));
 
   const minVal = Math.min(...values);
   const maxVal = Math.max(...values);
