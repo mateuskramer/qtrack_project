@@ -784,7 +784,7 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
               <div>
                 <h2 style={{ color: 'var(--text-main)' }}>Consulta 3: Efetividade de Calibração (Impacto Médio)</h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-                  <strong style={{ color: 'var(--text-main)' }}>Análise de Manutenção:</strong> Avalia a efetividade individual de cada calibração realizada no laboratório, rankeando a variação e melhora percentual dos parâmetros físicos ajustados (antes vs depois). Utiliza funções de janela para agrupar e rankear o top 3 eventos mais impactantes de cada tipo de parâmetro físico (Fase DRAG, Frequência Rabi, Amplitude Pi), garantindo visibilidade analítica equilibrada. Envolve as tabelas de ajustes <em style={{color: '#c084fc'}}>Calibracao_Qubit</em> e o registro geral de manutenções <em style={{color: '#c084fc'}}>Calibracao</em>.
+                  <strong style={{ color: 'var(--text-main)' }}>Análise de Manutenção:</strong> Avalia a efetividade individual de cada calibração realizada no laboratório, rankeando a variação e melhora percentual dos parâmetros físicos ajustados (antes vs depois). Utiliza funções de janela para agrupar e rankear o top 3 eventos mais impactantes de cada tipo de parâmetro físico (Fase DRAG, Frequência Rabi, Amplitude Pi), garantindo visibilidade analítica equilibrada. Envolve as tabelas de ajustes <em style={{color: '#c084fc'}}>Calibracao_Qubit</em>, o registro geral de manutenções <em style={{color: '#c084fc'}}>Calibracao</em> e a tabela de <em style={{color: '#c084fc'}}>Pesquisador</em>.
                 </p>
               </div>
 
@@ -796,6 +796,7 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                         <th style={{ padding: '10px' }}>Parâmetro</th>
                         <th style={{ padding: '10px' }}>Calibração</th>
+                        <th style={{ padding: '10px' }}>Pesquisador</th>
                         <th style={{ padding: '10px' }}>Data</th>
                         <th style={{ padding: '10px' }}>Var. Média</th>
                         <th style={{ padding: '10px' }}>Melhora %</th>
@@ -807,6 +808,7 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
                         <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '10px', fontWeight: 'bold' }}>{row.parametro_ajustado}</td>
                           <td style={{ padding: '10px' }}>#{row.id_calibracao} ({row.tipo_calibracao})</td>
+                          <td style={{ padding: '10px' }}>{row.pesquisador_nome}</td>
                           <td style={{ padding: '10px' }}>{new Date(row.data).toLocaleDateString('pt-BR')}</td>
                           <td style={{ padding: '10px' }}>{Number(row.variacao_media).toFixed(4)}</td>
                           <td style={{ padding: '10px', color: '#38bdf8' }}>
@@ -826,16 +828,26 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
                   </h4>
                   <ResponsiveContainer width="100%" height="90%">
                     <BarChart 
-                      data={dadosEfetividade.slice(0, 10).map(d => ({
-                        name: `${d.parametro_ajustado.substring(0, 10)} (#${d.id_calibracao})`,
-                        'Melhora (%)': Number(Math.abs(Number(d.melhora_percentual_media)).toFixed(3)),
-                        parametro: d.parametro_ajustado
-                      }))}
+                      data={dadosEfetividade.slice(0, 10).map(d => {
+                        const nomeCurto = d.pesquisador_nome ? d.pesquisador_nome.replace(/Dr\.\s+|Dra\.\s+/, '').split(' ')[0] : '';
+                        return {
+                          name: `${d.parametro_ajustado.substring(0, 10)} (#${d.id_calibracao}) ${nomeCurto ? `(${nomeCurto})` : ''}`,
+                          'Melhora (%)': Number(Math.abs(Number(d.melhora_percentual_media)).toFixed(3)),
+                          parametro: d.parametro_ajustado,
+                          pesquisador: d.pesquisador_nome
+                        };
+                      })}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.2} />
-                      <XAxis dataKey="name" stroke="var(--text-muted)" style={{ fontSize: '0.75rem' }} />
+                      <XAxis dataKey="name" stroke="var(--text-muted)" style={{ fontSize: '0.70rem' }} />
                       <YAxis stroke="var(--text-muted)" />
-                      <Tooltip formatter={(v) => `${v}%`} />
+                      <Tooltip 
+                        formatter={(v) => [`${v}%`, 'Melhora']}
+                        labelFormatter={(label, items) => {
+                          const item = items[0]?.payload;
+                          return `${label.split(' (')[0]} - Pesquisador: ${item?.pesquisador || 'Não informado'}`;
+                        }}
+                      />
                       <Bar dataKey="Melhora (%)" radius={[4, 4, 0, 0]}>
                         {dadosEfetividade.slice(0, 10).map((entry, index) => {
                           let fill = 'var(--accent-purple)';
@@ -861,12 +873,14 @@ WHERE mp.nome_metrica = 'Fidelidade' GROUP BY pq.nome_porta, pq.numero_qubits_al
     cq.parametro_ajustado,
     c.id_calibracao,
     c.tipo_calibracao,
+    p.nome as pesquisador_nome,
     DATE(c.data_hora_inicio) as data,
     (cq.valor_depois - cq.valor_antes) as variacao_media,
     (((cq.valor_depois - cq.valor_antes) / NULLIF(cq.valor_antes, 0)) * 100) as melhora_percentual_media,
     DENSE_RANK() OVER(PARTITION BY cq.parametro_ajustado ORDER BY ABS(cq.valor_depois - cq.valor_antes) DESC) as rank_impacto
   FROM Calibracao_Qubit cq
   JOIN Calibracao c ON cq.id_calibracao = c.id_calibracao
+  JOIN Pesquisador p ON c.id_pesquisador = p.id_pesquisador
 ) ranked
 WHERE rank_impacto <= 3
 ORDER BY parametro_ajustado, rank_impacto;`}

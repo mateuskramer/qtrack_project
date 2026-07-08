@@ -575,12 +575,14 @@ app.get('/api/relatorios/efetividade', async (req, res) => {
           cq.parametro_ajustado,
           c.id_calibracao,
           c.tipo_calibracao,
+          p.nome as pesquisador_nome,
           DATE(c.data_hora_inicio) as data,
           (cq.valor_depois - cq.valor_antes) as variacao_media,
           (((cq.valor_depois - cq.valor_antes) / NULLIF(cq.valor_antes, 0)) * 100) as melhora_percentual_media,
           DENSE_RANK() OVER(PARTITION BY cq.parametro_ajustado ORDER BY ABS(cq.valor_depois - cq.valor_antes) DESC) as rank_impacto
         FROM Calibracao_Qubit cq
         JOIN Calibracao c ON cq.id_calibracao = c.id_calibracao
+        JOIN Pesquisador p ON c.id_pesquisador = p.id_pesquisador
       ) ranked
       WHERE rank_impacto <= 3
       ORDER BY parametro_ajustado, rank_impacto;
